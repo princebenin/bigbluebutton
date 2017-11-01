@@ -1,57 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
-  BigBlueButton open source conferencing system - http://www.bigbluebutton.org
-  
-  Copyright (c) 2010 BigBlueButton Inc. and by respective authors (see below).
-  
-  BigBlueButton is free software; you can redistribute it and/or modify it under the 
-  terms of the GNU Lesser General Public License as published by the Free Software 
-  Foundation; either version 2.1 of the License, or (at your option) any later 
-  version. 
-  
-  BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY 
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
-  PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-  
-  You should have received a copy of the GNU Lesser General Public License along 
-  with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
- 
-  $Id: $
+
+BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
+
+Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
+
+This program is free software; you can redistribute it and/or modify it under the
+terms of the GNU Lesser General Public License as published by the Free Software
+Foundation; either version 3.0 of the License, or (at your option) any later
+version.
+
+BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License along
+with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
+
 -->
 
-<mx:Module xmlns:mx="http://www.adobe.com/2006/mxml" 
+<mx:Module xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:fx="http://ns.adobe.com/mxml/2009"
  	xmlns:maps="org.bigbluebutton.modules.chat.maps.*"
 	xmlns:mate="http://mate.asfusion.com/"
 	implements="org.bigbluebutton.common.IBigBlueButtonModule"
 	creationComplete="onCreationComplete()">
 	
-	<maps:ChatEventMap id="chatLocalEventMap"/>
+	<fx:Declarations>
+		<maps:ChatEventMap id="chatLocalEventMap"/>
+	</fx:Declarations>
 	
-	<mate:Listener type="{TranscriptEvent.TRANSCRIPT_EVENT}" method="handleTranscriptLoadedEvent"/>
-	
-	<mx:Script>
+	<fx:Script>
 		<![CDATA[
 			import com.asfusion.mate.events.Dispatcher;
 			
-			import mx.controls.Alert;
-			
-			import org.bigbluebutton.common.LogUtil;
-			import org.bigbluebutton.modules.chat.events.ChatEvent;
-			import org.bigbluebutton.modules.chat.events.PublicChatMessageEvent;
+			import org.as3commons.logging.api.ILogger;
+			import org.as3commons.logging.api.getClassLogger;
+			import org.bigbluebutton.common.IBigBlueButtonModule;
 			import org.bigbluebutton.modules.chat.events.StartChatModuleEvent;
 			import org.bigbluebutton.modules.chat.events.StopChatModuleEvent;
-			import org.bigbluebutton.modules.chat.events.TranscriptEvent;
-			import org.bigbluebutton.modules.chat.model.ChatObject;
-			import org.bigbluebutton.modules.chat.views.ChatBox;
 		
+			private static const LOGGER:ILogger = getClassLogger(ChatModule);
+
+			
 			private var _moduleName:String = "Chat Module";			
 			private var _attributes:Object;
 			
 			private var dispatcher:Dispatcher = new Dispatcher();
 			
 			private function onCreationComplete():void {
-				LogUtil.debug("ChatModule Initialized");			
+				LOGGER.debug("ChatModule Initialized");
 			}
 			
 			public function get moduleName():String {
@@ -69,18 +68,14 @@
 			public function get username():String {
 				return _attributes.username;
 			}
-			
-			public function get connection():NetConnection {
-				return _attributes.connection;
-			}
-			
+						
 			public function get mode():String {
 				if (_attributes.mode == null) {					
 					//_attributes.mode = "PLAYBACK"
 					_attributes.mode = "LIVE"
-					LogUtil.debug('Setting ChatModule mode: ' + _attributes.mode);
+					LOGGER.debug('Setting ChatModule mode: {0}', [_attributes.mode]);
 				}
-				LogUtil.debug('ChatModule mode: ' + _attributes.mode);
+				LOGGER.debug('ChatModule mode: {0}', [_attributes.mode]);
 				return _attributes.mode;
 			}
 						
@@ -92,57 +87,27 @@
 				return _attributes.userrole as String;
 			}
 			
-			public function get traslationEnabled():Boolean{
-				if (_attributes.translationEnabled == "false") return false;
-				else return true;
-			}
-			
-			public function get translationOn():Boolean{
-				if (_attributes.translationOn == "false") return false;
-				else return true;
-			}
-			
-			public function start(attributes:Object):void {	
-				LogUtil.debug("chat attr: " + attributes.username);
-				_attributes = attributes;	
-				LogUtil.debug("Dispatching StartChatModuleEvent");
+			public function start(attributes:Object):void {
+				LOGGER.debug("chat attr: ", [attributes.username]);
+				_attributes = attributes;
+				LOGGER.debug("Dispatching StartChatModuleEvent");
 				
 				var event:StartChatModuleEvent = new StartChatModuleEvent(StartChatModuleEvent.START_CHAT_MODULE_EVENT)
 				event.start = true;
 				event.attributes = _attributes;
-				event.translationOn = translationOn;
-				event.translationEnabled = traslationEnabled;
 				dispatcher.dispatchEvent(event);
 			}
 		
 			public function stop():void {
-				LogUtil.debug("Dispatching StopChatModuleEvent");
+				LOGGER.debug("Dispatching StopChatModuleEvent");
 				var event:StopChatModuleEvent = new StopChatModuleEvent(StopChatModuleEvent.STOP_CHAT_MODULE_EVENT);
 				dispatcher.dispatchEvent(event);
 			}
 			
 			private function handlePrivateChatMessageEvent(event:Event):void {
-				trace("Received PRIVATE CHAT MESSAGE EVENT");
+				LOGGER.debug("Received PRIVATE CHAT MESSAGE EVENT");
 			}
 			
-			private function handleTranscriptLoadedEvent(event:Event):void {
-				LogUtil.debug("Handling TranscriptLoadedEvent");
-				var welcome:String = _attributes.welcome as String;
-				if (welcome != ""){
-					var welcomeEvent:PublicChatMessageEvent = new PublicChatMessageEvent(PublicChatMessageEvent.PUBLIC_CHAT_MESSAGE_EVENT);
-					var chatobj:ChatObject = new ChatObject();
-					chatobj.message = welcome;
-					chatobj.username = " ";
-					chatobj.color = "0";
-					chatobj.time = ChatBox.getHours() + ":" + ChatBox.getMinutes();
-					chatobj.language = "en";
-					chatobj.userid = "";
-					
-					welcomeEvent.chatobj = chatobj;
-					var globalDispatcher:Dispatcher = new Dispatcher();
-					globalDispatcher.dispatchEvent(welcomeEvent);
-				}	
-			}
 		]]>
-	</mx:Script>
+	</fx:Script>
 </mx:Module>

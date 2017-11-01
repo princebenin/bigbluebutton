@@ -1,25 +1,21 @@
-/* BigBlueButton - http://www.bigbluebutton.org
- * 
- * 
- * Copyright (c) 2008-2009 by respective authors (see below). All rights reserved.
- * 
- * BigBlueButton is free software; you can redistribute it and/or modify it under the 
- * terms of the GNU Lesser General Public License as published by the Free Software 
- * Foundation; either version 3 of the License, or (at your option) any later 
- * version. 
- * 
- * BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY 
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
- * PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser General Public License along 
- * with BigBlueButton; if not, If not, see <http://www.gnu.org/licenses/>.
- *
- * Author: Richard Alam <ritzalam@gmail.com>
- * 		   DJP <DJP@architectes.org>
- * 
- * @version $Id: $
- */
+/**
+* BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
+*
+* Copyright (c) 2014 BigBlueButton Inc. and by respective authors (see below).
+*
+* This program is free software; you can redistribute it and/or modify it under the
+* terms of the GNU Lesser General Public License as published by the Free Software
+* Foundation; either version 3.0 of the License, or (at your option) any later
+* version.
+*
+* BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
+* WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+* PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License along
+* with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
+*
+*/
 package org.bigbluebutton.web.services
 
 import java.util.concurrent.*;
@@ -37,12 +33,13 @@ class PresentationService {
 	def testPresentationName
 	def testUploadedPresentation
 	def defaultUploadedPresentation
-	
-    def deletePresentation = {conf, room, filename ->
+	def presentationBaseUrl
+
+  def deletePresentation = {conf, room, filename ->
     		def directory = new File(roomDirectory(conf, room).absolutePath + File.separatorChar + filename)
-    		deleteDirectory(directory) 
+    		deleteDirectory(directory)
 	}
-	
+
 	def deleteDirectory = {directory ->
 		log.debug "delete = ${directory}"
 		/**
@@ -50,7 +47,7 @@ class PresentationService {
 		 * We need to delete files inside a directory before a
 		 * directory can be deleted.
 		**/
-		File[] files = directory.listFiles();				
+		File[] files = directory.listFiles();
 		for (int i = 0; i < files.length; i++) {
 			if (files[i].isDirectory()) {
 				deleteDirectory(files[i])
@@ -59,69 +56,86 @@ class PresentationService {
 			}
 		}
 		// Now that the directory is empty. Delete it.
-		directory.delete()	
+		directory.delete()
 	}
-	
+
 	def listPresentations = {conf, room ->
 		def presentationsList = []
 		def directory = roomDirectory(conf, room)
 		log.debug "directory ${directory.absolutePath}"
 		if( directory.exists() ){
 			directory.eachFile(){ file->
-				System.out.println(file.name)
 				if( file.isDirectory() )
 					presentationsList.add( file.name )
 			}
-		}	
+		}
 		return presentationsList
 	}
-	
-	public File uploadedPresentationDirectory(String conf, String room, String presentation_name) {
-		File dir = new File(roomDirectory(conf, room).absolutePath + File.separatorChar + presentation_name)
-		println "Uploaded presentation ${presentation_name} for conf ${conf} and room ${room} to dir ${dir.absolutePath}"
 
-		/* If the presentation name already exist, delete it. We should provide a check later on to notify user
-			that there is already a presentation with that name. */
-		if (dir.exists()) deleteDirectory(dir)		
-		dir.mkdirs()
+  def getPresentationDir = {
+    return presentationDir
+  }
 
-		assert dir.exists()
-		return dir
-	}
-	
-	def processUploadedPresentation = {uploadedPres ->	
-		// Run conversion on another thread.
-		new Timer().runAfter(1000) 
-		{
-			documentConversionService.processDocument(uploadedPres)
-		}
-	}
- 	
+    def processUploadedPresentation = {uploadedPres ->
+        // Run conversion on another thread.
+        Timer t = new Timer(uploadedPres.getName(), false)
+
+        t.runAfter(5000) {
+            try {
+                documentConversionService.processDocument(uploadedPres)
+            } finally {
+            t.cancel()
+            }
+        }
+    }
+
 	def showSlide(String conf, String room, String presentationName, String id) {
 		new File(roomDirectory(conf, room).absolutePath + File.separatorChar + presentationName + File.separatorChar + "slide-${id}.swf")
 	}
-	
+
+	def showSvgImage(String conf, String room, String presentationName, String id) {
+		new File(roomDirectory(conf, room).absolutePath + File.separatorChar + presentationName + File.separatorChar + "svgs" + File.separatorChar + "slide${id}.svg")
+	}
+
 	def showPresentation = {conf, room, filename ->
 		new File(roomDirectory(conf, room).absolutePath + File.separatorChar + filename + File.separatorChar + "slides.swf")
 	}
-	
+
 	def showThumbnail = {conf, room, presentationName, thumb ->
-		println "Show thumbnails request for $presentationName $thumb"
 		def thumbFile = roomDirectory(conf, room).absolutePath + File.separatorChar + presentationName + File.separatorChar +
 					"thumbnails" + File.separatorChar + "thumb-${thumb}.png"
 		log.debug "showing $thumbFile"
-		
+
 		new File(thumbFile)
 	}
-	
+
+	def showTextfile = {conf, room, presentationName, textfile ->
+		def txt = roomDirectory(conf, room).absolutePath + File.separatorChar + presentationName + File.separatorChar +
+					"textfiles" + File.separatorChar + "slide-${textfile}.txt"
+		log.debug "showing $txt"
+		
+		new File(txt)
+	}
+
 	def numberOfThumbnails = {conf, room, name ->
 		def thumbDir = new File(roomDirectory(conf, room).absolutePath + File.separatorChar + name + File.separatorChar + "thumbnails")
 		thumbDir.listFiles().length
-	}   
-	
-	def roomDirectory = {conf, room ->
-		return new File(presentationDir + File.separatorChar + conf + File.separatorChar + room)
 	}
+
+	def numberOfSvgs = {conf, room, name ->
+		def SvgsDir = new File(roomDirectory(conf, room).absolutePath + File.separatorChar + name + File.separatorChar + "svgs")
+		SvgsDir.listFiles().length
+	}
+
+	def numberOfTextfiles = {conf, room, name ->
+		log.debug roomDirectory(conf, room).absolutePath + File.separatorChar + name + File.separatorChar + "textfiles"
+		def textfilesDir = new File(roomDirectory(conf, room).absolutePath + File.separatorChar + name + File.separatorChar + "textfiles")
+		textfilesDir.listFiles().length
+	}
+
+  def roomDirectory = {conf, room ->
+      return new File(presentationDir + File.separatorChar + conf + File.separatorChar + room)
+  }
 
 	def testConversionProcess() {
 		File presDir = new File(roomDirectory(testConferenceMock, testRoomMock).absolutePath + File.separatorChar + testPresentationName)
@@ -129,7 +143,8 @@ class PresentationService {
 		if (presDir.exists()) {
 			File pres = new File(presDir.getAbsolutePath() + File.separatorChar + testUploadedPresentation)
 			if (pres.exists()) {
-				UploadedPresentation uploadedPres = new UploadedPresentation(testConferenceMock, testRoomMock, testPresentationName);
+				// TODO add podId
+				UploadedPresentation uploadedPres = new UploadedPresentation("B", testConferenceMock, testRoomMock, testPresentationName);
 				uploadedPres.setUploadedFile(pres);
 				// Run conversion on another thread.
 				new Timer().runAfter(1000) 
@@ -144,14 +159,23 @@ class PresentationService {
 		}
 		
 	}
-	
-}	
+
+	def getFile = {conf, room, presentationName ->
+		println "download request for $presentationName"
+		def fileDirectory = new File(roomDirectory(conf, room).absolutePath + File.separatorChar + presentationName + File.separatorChar +
+"download")
+		//list the files of the download directory ; it must have only 1 file to download
+		def list = fileDirectory.listFiles()
+		//new File(pdfFile)
+		list[0]
+	}
+}
 
 /*** Helper classes **/
 import java.io.FilenameFilter;
 import java.io.File;
-class PngFilter implements FilenameFilter {
+class SvgFilter implements FilenameFilter {
     public boolean accept(File dir, String name) {
-        return (name.endsWith(".png"));
+        return (name.endsWith(".svg"));
     }
 }

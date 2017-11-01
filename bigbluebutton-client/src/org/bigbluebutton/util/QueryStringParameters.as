@@ -1,27 +1,31 @@
 /**
 * BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
-*
-* Copyright (c) 2010 BigBlueButton Inc. and by respective authors (see below).
+* 
+* Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
 *
 * This program is free software; you can redistribute it and/or modify it under the
 * terms of the GNU Lesser General Public License as published by the Free Software
-* Foundation; either version 2.1 of the License, or (at your option) any later
+* Foundation; either version 3.0 of the License, or (at your option) any later
 * version.
-*
+* 
 * BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
 * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 * PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
 *
 * You should have received a copy of the GNU Lesser General Public License along
 * with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
-* 
+*
 */
 package org.bigbluebutton.util
 {
 	import flash.external.ExternalInterface;
-	import org.bigbluebutton.common.LogUtil;
+	
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
 	
 	public class QueryStringParameters {
+		private static const LOGGER:ILogger = getClassLogger(QueryStringParameters);
+
 		private var params:Array;
 		
 		public function collectParameters():void {
@@ -36,7 +40,7 @@ package org.bigbluebutton.util
 				params = url.split("&");
 									
 			} catch(e:Error) {
-				LogUtil.error(e.toString());
+				LOGGER.error(e.toString());
 			}
 		}
 		
@@ -45,7 +49,7 @@ package org.bigbluebutton.util
 						
 			for (var i:int = 0; i < params.length; i++) {
 				var tempA:Array = params[i].split("=");
-				trace(String(tempA[0]).toUpperCase() + " " + String(tempA[1]).toUpperCase());
+				//LOGGER.debug("{0} {1}", [String(tempA[0]).toUpperCase(), String(tempA[1]).toUpperCase()]);
 
 				if (String(tempA[0]).toUpperCase() == key.toUpperCase()) {
 					value = String(tempA[1])

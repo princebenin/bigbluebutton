@@ -1,3 +1,21 @@
+/**
+ * BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
+ * 
+ * Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
+ *
+ * This program is free software; you can redistribute it and/or modify it under the
+ * terms of the GNU Lesser General Public License as published by the Free Software
+ * Foundation; either version 3.0 of the License, or (at your option) any later
+ * version.
+ * 
+ * BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+ * PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License along
+ * with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 package org.bigbluebutton.modules.classyaudio.managers
 {
 	import com.asfusion.mate.events.Dispatcher;
@@ -6,17 +24,19 @@ package org.bigbluebutton.modules.classyaudio.managers
 	import flash.events.TimerEvent;
 	import flash.utils.Timer;
 	
-	import org.bigbluebutton.common.LogUtil;
-	import org.bigbluebutton.core.managers.UserManager;
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.common.events.ToolbarButtonEvent;
+	import org.bigbluebutton.core.UsersUtil;
 	import org.bigbluebutton.main.events.MadePresenterEvent;
-	import org.bigbluebutton.main.model.User;
 	import org.bigbluebutton.modules.classyaudio.events.CallConnectedEvent;
 	import org.bigbluebutton.modules.classyaudio.events.PushToTalkEvent;
 	import org.bigbluebutton.modules.classyaudio.views.PushToTalkButton;
 
 	public class ClassyAudioManager
 	{
+		private static const LOGGER:ILogger = getClassLogger(ClassyAudioManager);
+
 		private var connectionManager:ConnectionManager;
 		private var streamManager:StreamManager;
 		private var onCall:Boolean = false;
@@ -52,16 +72,16 @@ package org.bigbluebutton.modules.classyaudio.managers
 		}
 		
 		public function dialConference():void {
-			LogUtil.debug("Dialing...." + attributes.webvoiceconf + "...." + attributes.externUserID);
+			LOGGER.debug("Dialing....{0}....{1}", [attributes.webvoiceconf, attributes.externUserID]);
 			connectionManager.doCall(attributes.webvoiceconf);
 		}
 		
 		public function callConnected(event:CallConnectedEvent):void {
-			LogUtil.debug("Call connected...");
+			LOGGER.debug("Call connected...");
 			setupConnection();
-			LogUtil.debug("callConnected: Connection Setup");
+			LOGGER.debug("callConnected: Connection Setup");
 			streamManager.callConnected(event.playStreamName, event.publishStreamName, event.codec);
-			LogUtil.debug("callConnected::onCall set");
+			LOGGER.debug("callConnected::onCall set");
 			onCall = true;
 			
 			//Mute if the user is not the presenter at start
@@ -71,12 +91,12 @@ package org.bigbluebutton.modules.classyaudio.managers
 		}
 		
 		public function hangup():void {
-			LogUtil.debug("PhoneManager hangup");
+			LOGGER.debug("PhoneManager hangup");
 			if (onCall) {
-				LogUtil.debug("PM OnCall");
+				LOGGER.debug("PM OnCall");
 				streamManager.stopStreams();
 				connectionManager.doHangUp();
-				LogUtil.debug("PM hangup::doHangUp");
+				LOGGER.debug("PM hangup::doHangUp");
 				onCall = false;
 			}			
 		}
@@ -104,11 +124,12 @@ package org.bigbluebutton.modules.classyaudio.managers
 		private function enablePushToTalkButton():void{
 			var e:ToolbarButtonEvent = new ToolbarButtonEvent(ToolbarButtonEvent.ADD);
 			e.button = new PushToTalkButton();
+			e.module="Microphone";
 			dispatcher.dispatchEvent(e);
 		}
 		
 		private function muteIfNotPresenter(e:Event = null):void{
-			if (UserManager.getInstance().getConference().amIPresenter()){
+			if (UsersUtil.amIPresenter){
 				streamManager.unmute();
 			} else {
 				streamManager.mute();

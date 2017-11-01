@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 verticalScrollPolicy="off" horizontalScrollPolicy="off" verticalAlign="middle">
+	<fx:Script>
+		<![CDATA[
+			override public function set data(value:Object):void {
+				super.data = value;
+				
+				if (value == null) return;
+				
+				switch (value.type) {
+					case "success":
+						typeImg.source = getStyle("iconSuccess");
+						break;
+					case "warning":
+						typeImg.source = getStyle("iconWarning");
+						break;
+					case "fail":
+						typeImg.source = getStyle("iconFail");
+						break
+				}
+				titleLbl.text = value.title;
+				if (value.occurrences > 1) {
+					titleLbl.text = "(" + value.occurrences + ") " + titleLbl.text;
+				}
+				messageTxt.htmlText = value.message;
+				timeLbl.text = value.time;
+				
+				validateNow();
+			}
+		]]>
+	</fx:Script>
+	<mx:Image id="typeImg" width="34" height="34" />
+	<mx:VBox width="100%" verticalGap="0">
+		<mx:Label id="titleLbl" width="100%" styleName="statusTitleStyle"/>
+		<mx:Text id="messageTxt" width="100%" styleName="statusMessageStyle"/>
+	</mx:VBox>
+	<mx:VBox height="100%" verticalAlign="bottom">
+		<mx:Label id="timeLbl" width="100%" styleName="statusTimeStyle"/>
+	</mx:VBox>
+</mx:HBox>

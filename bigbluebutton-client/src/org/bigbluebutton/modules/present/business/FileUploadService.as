@@ -1,35 +1,46 @@
 /**
 * BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
-*
-* Copyright (c) 2010 BigBlueButton Inc. and by respective authors (see below).
+* 
+* Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
 *
 * This program is free software; you can redistribute it and/or modify it under the
 * terms of the GNU Lesser General Public License as published by the Free Software
-* Foundation; either version 2.1 of the License, or (at your option) any later
+* Foundation; either version 3.0 of the License, or (at your option) any later
 * version.
-*
+* 
 * BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
 * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 * PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
 *
 * You should have received a copy of the GNU Lesser General Public License along
 * with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
-* 
+*
 */
 package org.bigbluebutton.modules.present.business
 {
 	import com.asfusion.mate.events.Dispatcher;
 	
-	import flash.events.*;
+	import flash.events.Event;
+	import flash.events.HTTPStatusEvent;
+	import flash.events.IOErrorEvent;
+	import flash.events.ProgressEvent;
+	import flash.events.SecurityErrorEvent;
 	import flash.net.FileReference;
 	import flash.net.URLRequest;
 	import flash.net.URLRequestMethod;
-	import flash.net.URLVariables;	
-	import org.bigbluebutton.modules.present.events.UploadEvent;
-	import org.bigbluebutton.common.LogUtil;
+	import flash.net.URLVariables;
+	
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
+	import org.bigbluebutton.core.UsersUtil;
+	import org.bigbluebutton.modules.present.events.UploadCompletedEvent;
+	import org.bigbluebutton.modules.present.events.UploadIoErrorEvent;
+	import org.bigbluebutton.modules.present.events.UploadProgressEvent;
+	import org.bigbluebutton.modules.present.events.UploadSecurityErrorEvent;
 	
 	public class FileUploadService {
 		public static const ID:String = "FileUploadService";
+		private static const LOGGER:ILogger = getClassLogger(FileUploadService);
 
 		public static const UPLOAD_PROGRESS:String = "UPLOAD_PROGRESS";
 		public static const UPLOAD_COMPLETED:String = "UPLOAD_COMPLETED";
@@ -60,8 +71,10 @@ package org.bigbluebutton.modules.present.business
 		 * @param file - The FileReference class of the file we wish to send
 		 * 
 		 */		
-		public function upload(presentationName:String, file:FileReference):void {
+		public function upload(podId: String, presentationName:String, file:FileReference, downloadable:Boolean):void {
 			sendVars.presentation_name = presentationName;
+			sendVars.is_downloadable = downloadable;
+			sendVars.pod_id = podId;
 			var fileToUpload : FileReference = new FileReference();
 			fileToUpload = file;
 			
@@ -96,8 +109,7 @@ package org.bigbluebutton.modules.present.business
 		 */		
 		private function onUploadProgress(event:ProgressEvent) : void {
 			var percentage:Number = Math.round((event.bytesLoaded / event.bytesTotal) * 100);
-			var e:UploadEvent = new UploadEvent(UploadEvent.UPLOAD_PROGRESS_UPDATE);
-			e.percentageComplete = percentage;
+			var e:UploadProgressEvent = new UploadProgressEvent(percentage);
 			dispatcher.dispatchEvent(e);
 		}
 		
@@ -107,7 +119,7 @@ package org.bigbluebutton.modules.present.business
 		 * 
 		 */		
 		private function onUploadComplete(event:Event):void {
-			dispatcher.dispatchEvent(new UploadEvent(UploadEvent.UPLOAD_COMPLETE));
+			dispatcher.dispatchEvent(new UploadCompletedEvent());
 		}
 
 		/**
@@ -116,8 +128,15 @@ package org.bigbluebutton.modules.present.business
 		 * 
 		 */
 		private function onUploadIoError(event:IOErrorEvent):void {
-			dispatcher.dispatchEvent(new UploadEvent(UploadEvent.UPLOAD_IO_ERROR));
-			LogUtil.error("An error occured while uploading the file. " + event.toString()); 
+			if (event.errorID != 2038){ //upload works despite of this error.
+                var logData:Object = UsersUtil.initLogData();
+                logData.tags = ["presentation"];
+                logData.message = "IOError while uploading presentation."; 
+                LOGGER.error(JSON.stringify(logData));
+            
+				dispatcher.dispatchEvent(new UploadIoErrorEvent());
+			}
+			
 		}
 		
 		/**
@@ -126,8 +145,11 @@ package org.bigbluebutton.modules.present.business
 		 * 
 		 */		
 		private function onUploadSecurityError(event:SecurityErrorEvent) : void {
-			dispatcher.dispatchEvent(new UploadEvent(UploadEvent.UPLOAD_SECURITY_ERROR));
-			LogUtil.error("A security error occured while trying to upload the presentation. " + event.toString());
+            var logData:Object = UsersUtil.initLogData();
+            logData.tags = ["presentation"];
+            logData.message = "Security error while uploading presentation."; 
+            LOGGER.error(JSON.stringify(logData));
+            dispatcher.dispatchEvent(new UploadSecurityErrorEvent());
 		}		
 	}
 }

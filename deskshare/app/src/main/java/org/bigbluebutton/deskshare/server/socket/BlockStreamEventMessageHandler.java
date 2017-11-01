@@ -1,23 +1,20 @@
-/** 
-* ===License Header===
-*
+/**
 * BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
-*
-* Copyright (c) 2010 BigBlueButton Inc. and by respective authors (see below).
+* 
+* Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
 *
 * This program is free software; you can redistribute it and/or modify it under the
 * terms of the GNU Lesser General Public License as published by the Free Software
-* Foundation; either version 2.1 of the License, or (at your option) any later
+* Foundation; either version 3.0 of the License, or (at your option) any later
 * version.
-*
+* 
 * BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
 * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 * PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
 *
 * You should have received a copy of the GNU Lesser General Public License along
 * with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
-* 
-* ===License Header===
+*
 */
 package org.bigbluebutton.deskshare.server.socket;
 
@@ -47,12 +44,12 @@ public class BlockStreamEventMessageHandler extends IoHandlerAdapter {
     }
     
     private void closeSession(IoSession session) {
-		String room = (String)session.getAttribute(ROOM, null);
-		if (room != null) {
-			log.info("Closing session [" + room + "]. ");
-		} else {
-			log.info("Cannot determine session to close.");
-		}
+			String room = (String)session.getAttribute(ROOM, null);
+			if (room != null) {
+				log.info("Closing session [" + room + "]. ");
+			} else {
+				log.info("Cannot determine session to close.");
+			}
     	CloseFuture future = session.close(true);   	    	
     }    
 
@@ -62,11 +59,18 @@ public class BlockStreamEventMessageHandler extends IoHandlerAdapter {
     	if (message instanceof CaptureStartBlockEvent) {
     		System.out.println("Got CaptureStartBlockEvent");
     		CaptureStartBlockEvent event = (CaptureStartBlockEvent) message;
-    		sessionManager.createSession(event.getRoom(), event.getScreenDimension(), event.getBlockDimension(), event.getSequenceNum());
+    		sessionManager.createSession(event.getRoom(), event.getScreenDimension(), event.getBlockDimension(), event.getSequenceNum(), event.isUseSVC2());
     	} else if (message instanceof CaptureUpdateBlockEvent) {
 //    		System.out.println("Got CaptureUpdateBlockEvent");
     		CaptureUpdateBlockEvent event = (CaptureUpdateBlockEvent) message;
     		sessionManager.updateBlock(event.getRoom(), event.getPosition(), event.getVideoData(), event.isKeyFrame(), event.getSequenceNum());
+    		if (sessionManager.isSharingStopped(event.getRoom())) {
+    			// The flash client told us to stop sharing. Force stopping by closing connection from applet.
+    			// We're changing how to tell the applet to stop sharing as AS ExternalInterface to JS to Applet calls
+    			// generates a popup dialog that users may or may not see causing the browser to hang. (ralam aug 24, 2014)
+    			log.info("Sharing has stopped for meeting [" + event.getRoom() + "]. Closing connection.");
+    			session.close(true);
+    		}
     	} else if (message instanceof CaptureEndBlockEvent) {
     		CaptureEndBlockEvent event = (CaptureEndBlockEvent) message;
     		sessionManager.removeSession(event.getRoom(), event.getSequenceNum());

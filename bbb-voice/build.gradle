@@ -1,106 +1,66 @@
-usePlugin 'java'
-usePlugin 'war'
-usePlugin 'eclipse'
+apply plugin: 'java'
+apply plugin: 'war'
+apply plugin: 'eclipse'
 
-version = '0.7'
+version = '0.9.0'
 jar.enabled = true
 archivesBaseName = 'sip' 
 
-task dependencies(type: Copy) {
+task resolveDeps(type: Copy) {
     into('lib')
     from configurations.default
-    from configurations.default.allArtifacts*.file
-}
-
-task resolveDeps(dependsOn: configurations.default.buildArtifacts, type: Copy) {
-    into('lib')
-    from configurations.default
-    from configurations.default.allArtifacts*.file
-}
-
-task resolveDependencies(dependsOn: configurations.default.buildArtifacts, type: Copy) {
-    into('lib')
-    from configurations.default
-    from configurations.default.allArtifacts*.file
+    from configurations.default.allArtifacts.file
 }
 
 repositories {
-   	add(new org.apache.ivy.plugins.resolver.ChainResolver()) {
-		 name = 'remote'
-       	returnFirst = true
-       	add(new org.apache.ivy.plugins.resolver.URLResolver()) {
-       		name = "googlecode"
-       		addArtifactPattern "http://red5.googlecode.com/svn/repository/[artifact](-[revision]).[ext]"
-       		addArtifactPattern "http://red5.googlecode.com/svn/repository/[organisation]/[artifact](-[revision]).[ext]"
-		}
-		   add(new org.apache.ivy.plugins.resolver.URLResolver()) {
-       		name = "blindside-repos"
-       		addArtifactPattern "http://blindside.googlecode.com/svn/repository/[artifact](-[revision]).[ext]"
-       		addArtifactPattern "http://blindside.googlecode.com/svn/repository/[organisation]/[artifact](-[revision]).[ext]"
-		}			 
-    add(new org.apache.ivy.plugins.resolver.URLResolver()) {
-       		name = "maven2-central"
-       		m2compatible = true
-       		addArtifactPattern "http://repo1.maven.org/maven2/[organisation]/[module]/[revision]/[artifact](-[revision]).[ext]"
-       		addArtifactPattern "http://repo1.maven.org/maven2/[organisation]/[artifact]/[revision]/[artifact](-[revision]).[ext]"
-		}  
-    add(new org.apache.ivy.plugins.resolver.URLResolver()) {
-       		name = "testng_ibiblio_maven2"
-       		m2compatible = true
-       		addArtifactPattern "http://repo1.maven.org/maven2/[organisation]/[module]/[revision]/[artifact](-[revision])-jdk15.[ext]"
-       		addArtifactPattern "http://repo1.maven.org/maven2/[organisation]/[artifact]/[revision]/[artifact](-[revision])-jdk15.[ext]"
-		}  
-		add(new org.apache.ivy.plugins.resolver.URLResolver()) {
-            name = "netty-dependency"
-            m2compatible = true
-            addArtifactPattern "http://repository.jboss.org/nexus/content/groups/public-jboss/[organisation]/[module]/[revision]/[artifact](-[revision]).[ext]"
-            addArtifactPattern "http://repo1.maven.org/maven2/[organisation]/[artifact]/[revision]/[artifact](-[revision]).[ext]"
-    }
-		add(new org.apache.ivy.plugins.resolver.URLResolver()) {
-            name = "spring-bundles"
-            m2compatible = true
-            addArtifactPattern "http://repository.springsource.com/maven/bundles/external/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]"
-            addArtifactPattern "http://repository.springsource.com/maven/bundles/release/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]"
-        }        
-   	}
+  mavenCentral()
+  mavenLocal()
 }
 
+
 dependencies {	 
-	// Servlet
-	providedCompile 'javax.servlet:servlet-api:2.5@jar'
+  // Servlet
+  providedCompile 'javax.servlet:servlet-api:2.5@jar'
+
+  // Mina
+  providedCompile 'org.apache.mina:mina-core:2.0.16@jar'
+  providedCompile 'org.apache.mina:mina-integration-beans:2.0.16@jar'
+  providedCompile 'org.apache.mina:mina-integration-jmx:2.0.16@jar'
 	
-	// Mina
-	providedCompile 'mina:mina-core:2.0.4@jar'
-	providedCompile 'mina:mina-integration-beans:2.0.4@jar'
-	providedCompile 'mina:mina-integration-jmx:2.0.4@jar'
+  // Spring 
+  providedCompile 'org.springframework:spring-web:4.3.10.RELEASE@jar' 
+  providedCompile  'org.springframework:spring-beans:4.3.10.RELEASE@jar'
+  providedCompile 'org.springframework:spring-context:4.3.10.RELEASE@jar'
+  providedCompile 'org.springframework:spring-core:4.3.10.RELEASE@jar'
+
+  providedCompile 'org.red5:red5-server:1.0.10-M4@jar'
+  providedCompile 'org.red5:red5-server-common:1.0.10-M4@jar'
+  providedCompile 'org.red5:red5-io:1.0.10-M4@jar'
+	  
+  // Logging
+  providedCompile 'ch.qos.logback:logback-core:1.2.3@jar'
+  providedCompile 'ch.qos.logback:logback-classic:1.2.3@jar'
+  providedCompile 'org.slf4j:log4j-over-slf4j:1.7.25@jar'
+  providedCompile 'org.slf4j:jcl-over-slf4j:1.7.25@jar'
+  providedCompile 'org.slf4j:jul-to-slf4j:1.7.25@jar'
+  providedCompile 'org.slf4j:slf4j-api:1.7.25@jar'
+
+  // Needed for the JVM shutdown hook but needs to be put into red5/lib dir.
+  // Otherwise we get exception on aop utils class not found.
+  providedCompile 'org.springframework:spring-aop:4.3.10.RELEASE@jar'
+  compile 'aopalliance:aopalliance:1.0@jar'
 	
-	// Spring 
-	providedCompile 'org.springframework:spring-web:3.0.6.RELEASE@jar' 
-	providedCompile  'org.springframework:spring-beans:3.0.6.RELEASE@jar'
-	providedCompile 'org.springframework:spring-context:3.0.6.RELEASE@jar'
-	providedCompile 'org.springframework:spring-core:3.0.6.RELEASE@jar'
-			
-	// Red5
-	providedCompile 'org/red5:red5:1.0r4316@jar'
-	
-	// Logging
-	providedCompile 'org.slf4j:com.springsource.slf4j.api:1.6.1@jar'
-	providedCompile 'org.slf4j:com.springsource.slf4j.bridge:1.6.1@jar'
-	providedCompile ':logback-core:0.9.28@jar'
-	providedCompile ':logback-classic:0.9.28@jar'
-	providedCompile ':log4j-over-slf4j:1.6.1@jar' 
-	providedCompile ':jcl-over-slf4j:1.6.1@jar'
-	providedCompile ':jul-to-slf4j:1.6.1@jar'
+  // Testing
+  compile 'org.easymock:easymock:2.4@jar'
   
-	compile 'javax/media:jmf:2.1.1e@jar'
-	
-    // Testing
-    compile 'org.testng:testng:5.8@jar' 
-    compile 'org.easymock:easymock:2.4@jar'
+  // Testing
+  testRuntime 'org.easymock:easymock:2.4@jar'
+	    
+  // Redis pubsub
+  compile "redis.clients:jedis:2.1.0"
+  compile 'commons-pool:commons-pool:1.5.6'
+  compile 'com.google.code.gson:gson:2.5'
   
-	  // Testing
-	  testRuntime 'org/testng:testng:5.8@jar'
-	  testRuntime 'org.easymock:easymock:2.4@jar'
 }
 
 test {
@@ -109,7 +69,6 @@ test {
 
 war.doLast {
   ant.unzip(src: war.archivePath, dest: "$buildDir/sip")
-  ant.copy(file: "$buildDir/sip/WEB-INF/logback-sip.xml", todir: "$buildDir/sip/WEB-INF/classes")
 }
 
 

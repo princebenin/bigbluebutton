@@ -1,30 +1,30 @@
-/** 
-*
+/**
 * BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
-*
-* Copyright (c) 2010 BigBlueButton Inc. and by respective authors (see below).
+* 
+* Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
 *
 * This program is free software; you can redistribute it and/or modify it under the
-* terms of the GNU General Public License as published by the Free Software
-* Foundation; either version 2.1 of the License, or (at your option) any later
+* terms of the GNU Lesser General Public License as published by the Free Software
+* Foundation; either version 3.0 of the License, or (at your option) any later
 * version.
-*
+* 
 * BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
 * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-* PARTICULAR PURPOSE. See the GNU General Public License for more details.
+* PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
 *
-* You should have received a copy of the GNU General Public License along
+* You should have received a copy of the GNU Lesser General Public License along
 * with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
-* 
-**/
+*
+*/
 package org.bigbluebutton.voiceconf.sip;
 
 import org.slf4j.Logger;
 import org.zoolu.sip.provider.SipStack;
+import org.bigbluebutton.voiceconf.messaging.IMessagingService;
 import org.bigbluebutton.voiceconf.red5.CallStreamFactory;
 import org.bigbluebutton.voiceconf.red5.ClientConnectionManager;
 import org.red5.logging.Red5LoggerFactory;
-import org.red5.server.api.IScope;
+import org.red5.server.api.scope.IScope;
 import org.red5.server.api.stream.IBroadcastStream;
 
 import java.util.*;
@@ -39,16 +39,18 @@ public final class SipPeerManager {
 	
 	private ClientConnectionManager clientConnManager;
 	private CallStreamFactory callStreamFactory;
+	private IMessagingService messagingService;
 	
     private Map<String, SipPeer> sipPeers;
     private int sipStackDebugLevel = 8;
+    private int sipRemotePort = 5060;
     
     public SipPeerManager() {
         sipPeers = Collections.synchronizedMap(new HashMap<String, SipPeer>());
     }
 
-    public void createSipPeer(String peerId, String host, int sipPort, int startRtpPort, int stopRtpPort) {
-    	SipPeer sipPeer = new SipPeer(peerId, host, sipPort, startRtpPort, stopRtpPort);
+    public void createSipPeer(String peerId, String clientRtpIp, String host, int sipPort, int startRtpPort, int stopRtpPort) {
+    	SipPeer sipPeer = new SipPeer(peerId, clientRtpIp, host, sipPort, startRtpPort, stopRtpPort, messagingService);
     	sipPeer.setClientConnectionManager(clientConnManager);
     	sipPeer.setCallStreamFactory(callStreamFactory);
     	sipPeers.put(peerId, sipPeer);    	
@@ -65,7 +67,7 @@ public final class SipPeerManager {
     	if (sipPeer == null) throw new PeerNotFoundException("Can't find sip peer " + peerId);
     	sipPeer.call(clientId, callerName, destination);
     }
-     
+
     public void unregister(String userid) {
     	SipPeer sipUser = sipPeers.get(userid);
     	if (sipUser != null) {
@@ -100,6 +102,13 @@ public final class SipPeerManager {
         sipPeers.remove(userid);
     }
 
+    public void connectToGlobalStream(String peerId, String clientId, String callerIdName, String destination) {
+    	SipPeer sipUser = sipPeers.get(peerId);
+    	if (sipUser != null) {
+    		sipUser.connectToGlobalStream(clientId, callerIdName, destination);
+    	}
+    }
+
     public void close(String userid) {
     	SipPeer sipUser = sipPeers.get(userid);
     	if (sipUser != null) {
@@ -128,11 +137,21 @@ public final class SipPeerManager {
         SipStack.log_path = "log"; 
 	}
 	
+	public void setSipRemotePort(int port) {
+		this.sipRemotePort =  port;
+		SipStack.init();
+		SipStack.default_port = sipRemotePort;
+	}
+	
 	public void setCallStreamFactory(CallStreamFactory csf) {
 		callStreamFactory = csf;
 	}
 	
 	public void setClientConnectionManager(ClientConnectionManager ccm) {
 		clientConnManager = ccm;
+	}
+	
+	public void setMessagingService(IMessagingService service) {
+		messagingService = service;
 	}
 }

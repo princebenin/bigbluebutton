@@ -1,20 +1,20 @@
 /**
 * BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
-*
-* Copyright (c) 2010 BigBlueButton Inc. and by respective authors (see below).
+* 
+* Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
 *
 * This program is free software; you can redistribute it and/or modify it under the
 * terms of the GNU Lesser General Public License as published by the Free Software
-* Foundation; either version 2.1 of the License, or (at your option) any later
+* Foundation; either version 3.0 of the License, or (at your option) any later
 * version.
-*
+* 
 * BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
 * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 * PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
 *
 * You should have received a copy of the GNU Lesser General Public License along
 * with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
-* 
+*
 */
 
 package org.bigbluebutton.modules.classyaudio.managers {
@@ -22,21 +22,20 @@ package org.bigbluebutton.modules.classyaudio.managers {
 	import com.asfusion.mate.events.Dispatcher;
 	
 	import flash.events.AsyncErrorEvent;
-	import flash.events.Event;
-	import flash.events.IEventDispatcher;
 	import flash.events.NetStatusEvent;
 	import flash.events.SecurityErrorEvent;
-	import flash.external.*;
 	import flash.net.NetConnection;
-	import flash.net.NetStream;
+	import flash.net.ObjectEncoding;
 	
-	import org.bigbluebutton.common.LogUtil;
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.modules.classyaudio.events.CallConnectedEvent;
 	import org.bigbluebutton.modules.classyaudio.events.CallDisconnectedEvent;
 	import org.bigbluebutton.modules.classyaudio.events.ConnectionStatusEvent;
 	
 	public class ConnectionManager {
-			
+		private static const LOGGER:ILogger = getClassLogger(ConnectionManager);
+		
 		private  var netConnection:NetConnection = null;
 		private var username:String;
 		private var uri:String;
@@ -70,6 +69,7 @@ package org.bigbluebutton.modules.classyaudio.managers {
 		private function connectToServer(externUID:String, username:String):void {			
 			NetConnection.defaultObjectEncoding = flash.net.ObjectEncoding.AMF0;	
 			netConnection = new NetConnection();
+			netConnection.proxyType = "best";
 			netConnection.client = this;
 			netConnection.addEventListener( NetStatusEvent.NET_STATUS , netStatus );
 			netConnection.addEventListener(SecurityErrorEvent.SECURITY_ERROR, securityErrorHandler);
@@ -85,42 +85,42 @@ package org.bigbluebutton.modules.classyaudio.managers {
 			
 			switch(evt.info.code) {				
 				case "NetConnection.Connect.Success":
-					LogUtil.debug("Successfully connected to SIP application.");
+					LOGGER.debug("Successfully connected to SIP application.");
 					event.status = ConnectionStatusEvent.SUCCESS;								
 					break;
 		
 				case "NetConnection.Connect.Failed":
-					LogUtil.debug("Failed to connect to SIP application.");
+					LOGGER.debug("Failed to connect to SIP application.");
 					event.status = ConnectionStatusEvent.FAILED;
 					break;
 					
 				case "NetConnection.Connect.Closed":
-					LogUtil.debug("Connection to SIP application has closed.");
+					LOGGER.debug("Connection to SIP application has closed.");
 					event.status = ConnectionStatusEvent.CLOSED;
 				break;
 		
 				case "NetConnection.Connect.Rejected":
-					LogUtil.debug("Connection to SIP application was rejected.");
+					LOGGER.debug("Connection to SIP application was rejected.");
 					event.status = ConnectionStatusEvent.REJECTED;
 					break;					
 				default:					
 			}			
 			
-			LogUtil.debug("Phone Module Connection Status: " + event.status);
-			LogUtil.debug("Dispatching " + event.status);
+			LOGGER.debug("Phone Module Connection Status: {0}", [event.status]);
+			LOGGER.debug("Dispatching " + event.status);
 			dispatcher.dispatchEvent(event); 
 		} 
 		
 		private function asyncErrorHandler(event:AsyncErrorEvent):void {
-           LogUtil.debug("AsyncErrorEvent: " + event);
+			LOGGER.debug("AsyncErrorEvent: {0}", [event]);
         }
 		
 		private function securityErrorHandler(event:SecurityErrorEvent):void {
-            LogUtil.debug("securityErrorHandler: " + event);
+			LOGGER.debug("securityErrorHandler: {0}", [event]);
         }
         
      	public function call():void {
-     		LogUtil.debug("Calling " + room);
+			LOGGER.debug("Calling {0}", [room]);
 			doCall(room);
      	}
         
@@ -130,21 +130,21 @@ package org.bigbluebutton.modules.classyaudio.managers {
 		//
 		//********************************************************************************************		
 		public function failedToJoinVoiceConferenceCallback(msg:String):* {
-			LogUtil.debug("failedToJoinVoiceConferenceCallback " + msg);
+			LOGGER.debug("failedToJoinVoiceConferenceCallback {0}", [msg]);
 			var event:CallDisconnectedEvent = new CallDisconnectedEvent();
 			dispatcher.dispatchEvent(event);	
 			isConnected = false;
 		}
 		
 		public function disconnectedFromJoinVoiceConferenceCallback(msg:String):* {
-			LogUtil.debug("disconnectedFromJoinVoiceConferenceCallback " + msg);
+			LOGGER.debug("disconnectedFromJoinVoiceConferenceCallback {0}", [msg]);
 			var event:CallDisconnectedEvent = new CallDisconnectedEvent();
 			dispatcher.dispatchEvent(event);	
 			isConnected = false;
 		}	
 				
         public function successfullyJoinedVoiceConferenceCallback(publishName:String, playName:String, codec:String):* {
-        	LogUtil.debug("successfullyJoinedVoiceConferenceCallback " + publishName + " : " + playName + " : " + codec);
+			LOGGER.debug("successfullyJoinedVoiceConferenceCallback {0} : {1} : {2}", [publishName, playName, codec]);
 			isConnected = true;
 			var event:CallConnectedEvent = new CallConnectedEvent();
 			event.publishStreamName = publishName;
@@ -159,7 +159,7 @@ package org.bigbluebutton.modules.classyaudio.managers {
 		//
 		//********************************************************************************************		
 		public function doCall(dialStr:String):void {
-			LogUtil.debug("Calling " + dialStr);
+			LOGGER.debug("Calling ", [dialStr]);
 			netConnection.call("voiceconf.call", null, "default", username, dialStr);
 		}
 				

@@ -1,40 +1,39 @@
 /**
 * BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
-*
-* Copyright (c) 2010 BigBlueButton Inc. and by respective authors (see below).
+* 
+* Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
 *
 * This program is free software; you can redistribute it and/or modify it under the
 * terms of the GNU Lesser General Public License as published by the Free Software
-* Foundation; either version 2.1 of the License, or (at your option) any later
+* Foundation; either version 3.0 of the License, or (at your option) any later
 * version.
-*
+* 
 * BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
 * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 * PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
 *
 * You should have received a copy of the GNU Lesser General Public License along
 * with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
-* 
+*
 */
 package org.bigbluebutton.main.model.modules
 {
 	import flash.utils.Dictionary;
 	
 	import mx.collections.ArrayCollection;
-	import mx.controls.Alert;
 	
-	import org.bigbluebutton.common.LogUtil;
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
 
 	public class DependancyResolver
 	{
+		private static const LOGGER:ILogger = getClassLogger(DependancyResolver);      
+
 		private var _modules:Dictionary;
 		
-		public function DependancyResolver()
-		{
-		}
-		
 		/**
-		 * Creates a dependency tree for modules using a topological sort algorithm (Khan, 1962, http://portal.acm.org/beta/citation.cfm?doid=368996.369025)
+		 * Creates a dependency tree for modules using a topological sort algorithm 
+		 * (Khan, 1962, http://portal.acm.org/beta/citation.cfm?doid=368996.369025)
 		 */
 		public function buildDependencyTree(modules:Dictionary):ArrayCollection{
 			this._modules = modules;
@@ -63,13 +62,8 @@ package org.bigbluebutton.main.model.modules
 				var m2:ModuleDescriptor = _modules[key2] as ModuleDescriptor;
 				if (m2.unresolvedDependancies.length != 0){
 					throw new Error("Modules have circular dependancies, please check your config file. Unresolved: " + 
-													m2.getName() + " depends on " + m2.unresolvedDependancies.toString());
+								m2.getName() + " depends on " + m2.unresolvedDependancies.toString());
 				}
-			}
-			LogUtil.debug("Dependency Order: ");
-			for (var u:int = 0; u<sorted.length; u++){
-				LogUtil.debug(((sorted.getItemAt(u) as ModuleDescriptor).getName()));
-				//Alert.show((sorted.getItemAt(u) as ModuleDescriptor).getAttribute("name") as String);
 			}
 
 			return sorted;

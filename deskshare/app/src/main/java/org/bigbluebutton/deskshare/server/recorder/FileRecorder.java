@@ -1,3 +1,21 @@
+/**
+* BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
+* 
+* Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
+*
+* This program is free software; you can redistribute it and/or modify it under the
+* terms of the GNU Lesser General Public License as published by the Free Software
+* Foundation; either version 3.0 of the License, or (at your option) any later
+* version.
+* 
+* BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
+* WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+* PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License along
+* with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
+*
+*/
 package org.bigbluebutton.deskshare.server.recorder;
 
 import java.io.FileNotFoundException;
@@ -7,6 +25,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.mina.core.buffer.IoBuffer;
 import org.bigbluebutton.deskshare.server.recorder.event.RecordErrorEvent;
@@ -36,9 +55,13 @@ public class FileRecorder implements Recorder {
 	
 	public FileRecorder(String name, String recordingPath) {
 		session = name;
-		flvFilename = recordingPath + "/" + name + "-" + System.currentTimeMillis() + ".flv";
+		flvFilename = recordingPath + "/" + name + "-" + genTimestamp() + ".flv";
 	}
 	
+  private Long genTimestamp() {
+  	return TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+  }
+  
 	public void addListener(RecordStatusListener l) {
 		listeners.addListener(l);
 	}

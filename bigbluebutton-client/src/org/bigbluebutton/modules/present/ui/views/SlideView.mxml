@@ -1,135 +1,163 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
-  BigBlueButton open source conferencing system - http://www.bigbluebutton.org
-  
-  Copyright (c) 2010 BigBlueButton Inc. and by respective authors (see below).
-  
-  BigBlueButton is free software; you can redistribute it and/or modify it under the 
-  terms of the GNU Lesser General Public License as published by the Free Software 
-  Foundation; either version 2.1 of the License, or (at your option) any later 
-  version. 
-  
-  BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY 
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
-  PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-  
-  You should have received a copy of the GNU Lesser General Public License along 
-  with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
- 
-  $Id: $
+
+BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
+
+Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
+
+This program is free software; you can redistribute it and/or modify it under the
+terms of the GNU Lesser General Public License as published by the Free Software
+Foundation; either version 3.0 of the License, or (at your option) any later
+version.
+
+BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License along
+with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
+
 -->
 
-<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" 
-	xmlns:mate="http://mate.asfusion.com/"
-	xmlns:local="*"
-    width="{slideModel.viewportW}" height="{slideModel.viewportH}" 
-	x="{slideModel.viewportX}" y="{slideModel.viewportY}"
-    creationComplete="onCreationComplete()" 
-	verticalScrollPolicy="off" 
-	horizontalScrollPolicy="off"      
-    rollOut="hideCursor()"
-    xmlns:views="org.bigbluebutton.modules.present.views.*"
-    implements="org.bigbluebutton.common.IBbbCanvas">
-    
-	<mate:Listener type="{MoveEvent.CUR_SLIDE_SETTING}" method="handleCurSlideSettingEvent" />
-    <mate:Listener type="{MoveEvent.MOVE}" method="handleMoveEvent" />
-    <mate:Listener type="{SlideEvent.SLIDE_LOADED}" method="handleSlideLoadedEvent" />
-    <mate:Listener type="{MadePresenterEvent.SWITCH_TO_PRESENTER_MODE}" method="handleSwitchToPresenterEvent" />
-    <mate:Listener type="{MadePresenterEvent.SWITCH_TO_VIEWER_MODE}" method="handleSwitchToViewerEvent" />
-    <mate:Listener type="{CursorEvent.UPDATE_CURSOR}" method="handleUpdateCursorEvent" />
-    
-	<mx:Script>
+<mx:Canvas xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:fx="http://ns.adobe.com/mxml/2009"
+		   xmlns:mate="http://mate.asfusion.com/"
+		   xmlns:local="*"
+		   xmlns:fimage="org.bigbluebutton.common.model.*"
+		   width="{slideModel.viewportW}"
+		   height="{slideModel.viewportH}"
+		   x="{slideModel.viewportX}"
+		   y="{slideModel.viewportY}"
+		   creationComplete="onCreationComplete()"
+		   verticalScrollPolicy="off"
+		   horizontalScrollPolicy="off"
+		   clipContent="true"
+		   styleName="presentationSlideViewStyle"
+		   xmlns:views="org.bigbluebutton.modules.present.views.*">
+
+	<fx:Declarations>
+	  <mate:Listener type="{PageChangedEvent.PRESENTATION_PAGE_CHANGED_EVENT}" method="handlePageChangedEvent" />
+	  <mate:Listener type="{PageLoadedEvent.PAGE_LOADED_EVENT}" method="handlePageLoadedEvent" />
+	  <mate:Listener type="{MadePresenterEvent.SWITCH_TO_PRESENTER_MODE}" method="handleSwitchToPresenterEvent" />
+	  <mate:Listener type="{MadePresenterEvent.SWITCH_TO_VIEWER_MODE}" method="handleSwitchToViewerEvent" />
+	  <mate:Listener type="{ShortcutEvent.FOCUS_SLIDE}" method="focusSlide" />
+	</fx:Declarations>
+	<fx:Script>
 		<![CDATA[
 			import com.asfusion.mate.events.Dispatcher;
 			
-			import flash.events.Event;
-			
-			import mx.binding.utils.BindingUtils;
 			import mx.collections.ArrayCollection;
-			import mx.controls.Alert;
-			import mx.controls.Button;
-			import mx.events.FlexEvent;
-			import mx.events.ListEvent;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
 			
-			import org.bigbluebutton.common.IBbbCanvas;
-			import org.bigbluebutton.common.LogUtil;
-			import org.bigbluebutton.core.managers.UserManager;
+			import org.as3commons.logging.api.ILogger;
+			import org.as3commons.logging.api.getClassLogger;
+			import org.bigbluebutton.core.UsersUtil;
 			import org.bigbluebutton.main.events.MadePresenterEvent;
-			import org.bigbluebutton.modules.present.events.CursorEvent;
+			import org.bigbluebutton.main.events.ShortcutEvent;
+			import org.bigbluebutton.modules.present.commands.GoToPageLocalCommand;
 			import org.bigbluebutton.modules.present.events.DisplaySlideEvent;
-			import org.bigbluebutton.modules.present.events.MoveEvent;
+			import org.bigbluebutton.modules.present.events.PageChangedEvent;
+			import org.bigbluebutton.modules.present.events.PageLoadedEvent;
 			import org.bigbluebutton.modules.present.events.PresenterCommands;
-			import org.bigbluebutton.modules.present.events.SlideEvent;
-			import org.bigbluebutton.modules.present.events.SlideResizedEvent;
-			import org.bigbluebutton.modules.present.events.UploadEvent;
-			import org.bigbluebutton.modules.present.events.WindowResizedEvent;
-			import org.bigbluebutton.modules.present.events.ZoomEvent;
-			import org.bigbluebutton.modules.present.managers.Slide;
+			import org.bigbluebutton.modules.present.model.Page;
+			import org.bigbluebutton.modules.present.model.Presentation;
+			import org.bigbluebutton.modules.present.model.PresentationPodManager;
 			import org.bigbluebutton.modules.present.ui.views.models.SlideCalcUtil;
 			import org.bigbluebutton.modules.present.ui.views.models.SlideViewModel;
-			
+			import org.bigbluebutton.modules.whiteboard.views.WhiteboardCanvas;
+			import org.bigbluebutton.util.i18n.ResourceUtil;
+
+			private static const LOGGER:ILogger = getClassLogger(SlideView);      
+      
 			[Bindable] public var zoomPercentage:Number = 100;
 			public static const ZOOM_STEP:int = 5;
 			public static const THUMBNAILS_CLOSED:String = "ThumbnailsClosed";
 			
-			
-			/**
-			 * Variables that stores the presenter's ratio between
-			 * loader and canvas. We need to size the slide with the
-			 * same scale as the presenter so that the cursor syncs
-			 * properly.
-			 */
-			private var presenterViewedRegionX:Number = 0;
-			private var presenterViewedRegionY:Number = 0;
-			private var presenterViewedRegionW:Number = 100;
-			private var presenterViewedRegionH:Number = 100;
-						
-			private var cursor:Shape;
-			private var whiteboardCanvasHolder:Canvas = new Canvas();
-			private var whiteboardCanvas:IBbbCanvas;
-							
-        	[Bindable] public var slides:ArrayCollection;
-			[Bindable] public var selectedSlide:int=0;
-			[Bindable] private var lateComerSynched:Boolean = false;
-			
+			private var whiteboardCanvas:WhiteboardCanvas;
+										
 			private var dispatcher:Dispatcher = new Dispatcher();
 						
 			[Bindable]
-			private var slideModel:SlideViewModel = new SlideViewModel();
-			
+			public var slideModel:SlideViewModel = new SlideViewModel();
+
+
+			public var podId:String;
+
+      private var pageCache:ArrayCollection = new ArrayCollection();
+      
 			private function onCreationComplete():void {
-				slideLoader.width = this.width;
-				slideLoader.height = this.height;
-				
-				cursor = new Shape();
-				cursor.graphics.lineStyle(6, 0xFF0000, 0.6);
-				cursor.graphics.drawCircle(0,0,3);
-				this.rawChildren.addChild(cursor);
-				cursor.visible = false;
-				
-				whiteboardCanvasHolder = new Canvas();
-				this.addChild(whiteboardCanvasHolder);
-				whiteboardCanvasHolder.x = 0;
-				whiteboardCanvasHolder.y = 0;
+				//slideLoader.width = this.width;
+				//slideLoader.height = this.height;
 				
 				this.setChildIndex(thumbnailView, this.numChildren - 1);
+				
+				/*
+				var t:Timer = new Timer(3000, 1);
+				var that:SlideView = this;
+				t.addEventListener(TimerEvent.TIMER_COMPLETE, function () {
+					var poll:PollResultsView = new PollResultsView();
+					that.addChild(poll);
+					
+					that.callLater(function():void {
+						poll.x = that.width - poll.width;
+						poll.y = that.height - poll.height;
+					});
+				});
+				t.start();
+				*/
+        
+        if (UsersUtil.amIPresenter()) {
+          becomePresenter();
+        } else {
+          becomeViewer();
+        }
 			}
 						
-			public function setSlides(slides:ArrayCollection):void {
-				this.slides = slides;
-				thumbnailView.dataProvider = this.slides.toArray();
+			public function setSlides(_podId: String):void {
+				if (_podId != this.podId) {
+					return;
+				}
+
+				var pres: Presentation = PresentationPodManager.getInstance().getPod(_podId).getCurrentPresentation();
+				if (pres != null) {
+					pageCache = pres.getPages();
+					/* Create the SortField object for the "num" field in the ArrayCollection object, and make sure we do a numeric sort. */
+					var dataSortField:SortField = new SortField();
+					dataSortField.name = "num";
+					dataSortField.numeric = true;
+
+					/* Create the Sort object and add the SortField object created earlier to the array of fields to sort on. */
+					var numericDataSort:Sort = new Sort();
+					numericDataSort.fields = [dataSortField];
+
+					/* Set the ArrayCollection object's sort property to our custom sort, and refresh the ArrayCollection. */
+					pageCache.sort = numericDataSort;
+					pageCache.refresh();
+					thumbnailView.dataProvider = pageCache;
+				}
 			}
-			
+
+      public function setSelectedSlide(slideNum:int):void {
+        if (slideNum > pageCache.length) {
+          LOGGER.debug("Page num [{0}] > numPages[{1}]", [slideNum, pageCache.length]);
+          return;
+        }
+        for (var idx:int = 0; idx < pageCache.length; idx++) {
+          var p:Page = pageCache.getItemAt(idx) as Page;
+          if (p.num == slideNum) {
+            thumbnailView.selectedIndex = idx;
+          }
+        }       
+      }
+            
 			private function changeSlide():void {
-				dispatchEvent(new PresenterCommands(PresenterCommands.GOTO_SLIDE, thumbnailView.selectedIndex));
+				var data:Page = thumbnailView.selectedItem as Page;
+				LOGGER.debug("Change page from thumbnail. Selected page [{0}]", [data.id]);
+
+				dispatchEvent(new GoToPageLocalCommand(data.id));
 				thumbnailView.visible = false;
-				showOverlayCanvas(true);
-				dispatchEvent(new Event(THUMBNAILS_CLOSED));
-			}
-			
-			private function changeIndex(e:ListEvent):void {
-				dispatchEvent(e);
 			}
 			
 			private var prevMouseX:Number;
@@ -138,10 +166,12 @@
 			/**
 			 * Triggered when the presenter clicks on the slides with the intent of moving it.
 			 */		
-			private function onMouseDown(e:MouseEvent):void {						
+			private function onMouseDown(e:MouseEvent):void {
 				prevMouseX = this.mouseX;
-				prevMouseY = this.mouseY;			
-				addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+				prevMouseY = this.mouseY;
+				stage.addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+				stage.addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+				Mouse.cursor = MouseCursor.HAND;
 			}
 			
 			/**
@@ -153,59 +183,58 @@
 				var deltaCanvasMouseY:Number = this.mouseY - prevMouseY;
 				prevMouseX = this.mouseX;
 				prevMouseY = this.mouseY;				
-				slideModel.onMove(deltaCanvasMouseX, deltaCanvasMouseY); 
-				slideModel.printViewedRegion();
-				slideModel.displayPresenterView();
-				fitSlideToLoader();		
-				notifyOthersOfZoomEvent();
+				var xyChange:Boolean = slideModel.onMove(deltaCanvasMouseX, deltaCanvasMouseY);
+				if (xyChange) {
+					slideModel.printViewedRegion();
+					slideModel.displayPresenterView();
+					fitSlideToLoader();
+					notifyOthersOfZoomEvent();
+				}
 			}
 						
 			/**
 			 * Triggered when the presenter releases the mouse button.
 			 */		
 			private function onMouseUp(e:MouseEvent):void{		
-				removeEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
-			}
-			
-			/**
-			 * Triggered when the presenter has dragged the cursor outside the presetation window.
-			 */
-			private function onMouseOut(e:MouseEvent):void{
-				removeEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+				Mouse.cursor = MouseCursor.AUTO;
+				stage.removeEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+				stage.removeEventListener(MouseEvent.MOUSE_UP, onMouseUp);
 			}
 						
-			public function onParentResized(parentWidth:Number, parentHeight:Number):void {
+			public function onParentResized(_podId: String, parentWidth:Number, parentHeight:Number):void {
 				if (slideModel == null || noSlideContentLoaded()) return;
-				
+
+				if (_podId != this.podId) {
+					return;
+				}
+
 				slideModel.parentChange(parentWidth, parentHeight);
 				
-				if (UserManager.getInstance().getConference().amIPresenter()) {
+				if (UsersUtil.amIPresenter()) {
 					slideModel.adjustSlideAfterParentResized();
+					slideModel.onMove(0, 0); // fake a move to reset some values
 					slideModel.displayPresenterView();
 					slideModel.printViewedRegion();
 					fitSlideToLoader();
 					notifyOthersOfZoomEvent();
 				} else {
-					slideModel.calculateViewportNeededForRegion(slideModel.viewedRegionX, slideModel.viewedRegionY, slideModel.viewedRegionW, slideModel.viewedRegionH);
-					slideModel.displayViewerRegion(slideModel.viewedRegionX, slideModel.viewedRegionY, slideModel.viewedRegionW, slideModel.viewedRegionH);
-					slideModel.calculateViewportXY();
-					slideModel.displayPresenterView();
-					slideModel.printViewedRegion();
-					fitSlideToLoader();	
-				}				
+					var page:Page = PresentationPodManager.getInstance().getPod(_podId).getCurrentPage();
+					if (page != null) {
+						LOGGER.debug("Parent window has resized. Reposition page [{0}]", [page.id]);
+						positionPage(page);
+					}
+				}
 			}
-											
+
 			/**
 			 * Fit the slide inside the loader.
 			 */			
 			private function fitSlideToLoader():void {
 				if (noSlideContentLoaded()) return;
-				
 				slideLoader.content.x = slideLoader.x;
 				slideLoader.content.y = slideLoader.y;
 				slideLoader.content.width = slideLoader.width;
 				slideLoader.content.height = slideLoader.height;
-	
 				moveCanvas(slideLoader.x, slideLoader.y);
 				zoomCanvas(slideLoader.width, slideLoader.height);
 			}
@@ -214,44 +243,53 @@
 			 * Triggered when the presenter uses the mouse wheel to zoom in/out of the slide.
 			 */
 			private function onMouseWheelZoomEvent(e:MouseEvent):void {
+				var newZoomPercentage:Number = zoomPercentage;
 				if (presenterIsZoomingOut(e.delta)) {
-					zoomPercentage -= ZOOM_STEP;
+					newZoomPercentage -= ZOOM_STEP;
 				} else {
-					zoomPercentage += ZOOM_STEP;
+					newZoomPercentage += ZOOM_STEP;
 				}
-				
-				zoomSlide(zoomPercentage, this.mouseX, this.mouseY);
-						
+				zoomSlide(newZoomPercentage, this.mouseX, this.mouseY);
 			}
 			
 			public function switchToFitToPage(ftp:Boolean):void {
 				slideModel.switchToFitToPage(ftp);
+				slideModel.onMove(0, 0); // fake a move to reset some values
 				onZoomSlide(100);
 			}
 			
 			public function onZoomSlide(zoom:Number):void {
-				if (slideLoader.content == null) return;
-				zoomSlide(zoom, slideLoader.content.width/2, slideLoader.content.height/2);
+				if (slideLoader.content == null) {
+          LOGGER.debug("Not zooming. slideLoader.content == null");
+          return;
+        }
+				zoomSlide(zoom, (((slideLoader.content.width/2)*SlideViewModel.HUNDRED_PERCENT)/zoom), (((slideLoader.content.height/2)*SlideViewModel.HUNDRED_PERCENT)/zoom));
 			}
 			
 			private function zoomSlide(zoom:Number, mouseX:Number, mouseY:Number):void {
-				zoomPercentage = zoom;
-				if (zoomPercentage <= SlideViewModel.HUNDRED_PERCENT) {
-					zoomPercentage = SlideViewModel.HUNDRED_PERCENT;
-				} else if (zoomPercentage >= SlideViewModel.MAX_ZOOM_PERCENT) {
-					zoomPercentage = SlideViewModel.MAX_ZOOM_PERCENT
+				if (zoom <= SlideViewModel.HUNDRED_PERCENT) {
+					zoom = SlideViewModel.HUNDRED_PERCENT;
+				} else if (zoom >= SlideViewModel.MAX_ZOOM_PERCENT) {
+					zoom = SlideViewModel.MAX_ZOOM_PERCENT
 				}
 				
-				slideModel.onZoom(zoomPercentage, mouseX, mouseY);
-				slideModel.printViewedRegion();
-				slideModel.displayPresenterView();
-				fitSlideToLoader();	
-				
-				notifyOthersOfZoomEvent();	
+				if (zoom != zoomPercentage) {
+					zoomPercentage = zoom;
+					
+					slideModel.onZoom(zoomPercentage, mouseX, mouseY);
+					slideModel.printViewedRegion();
+					slideModel.displayPresenterView();
+					fitSlideToLoader();
+					notifyOthersOfZoomEvent();
+				}
 			}
 									
 			private function notifyOthersOfZoomEvent():void {
-				var presentEvent:PresenterCommands = new PresenterCommands(PresenterCommands.ZOOM);
+				if (this.podId == null) {
+					return;
+				}
+
+				var presentEvent:PresenterCommands = new PresenterCommands(PresenterCommands.ZOOM, this.podId);
 				presentEvent.xOffset = slideModel.viewedRegionX;
 				presentEvent.yOffset = slideModel.viewedRegionY;
 				presentEvent.slideToCanvasWidthRatio = slideModel.viewedRegionW;
@@ -263,106 +301,100 @@
 				// If delta is negative, the presenter is zooming-out of the presentation.
 				return delta < 0;
 			}
-			
+
 			/**
 			 * Handles notification from presenter that the slide has moved.
 			 */
-			private function handleCurSlideSettingEvent(e:MoveEvent):void{
-				if (UserManager.getInstance().getConference().amIPresenter()) {
+			private function handlePageChangedEvent(e:PageChangedEvent):void {
+        LOGGER.debug("Got a page changed event for pod=" + e.podId + " page=" + e.pageId);
+				if (e.podId != this.podId) {
+          LOGGER.debug("Not handling page as this.podId=" + this.podId);
 					return;
 				}
 
-				presenterViewedRegionX = e.xOffset;
-				presenterViewedRegionY = e.yOffset;
-				presenterViewedRegionW = e.slideToCanvasWidthRatio;
-				presenterViewedRegionH = e.slideToCanvasHeightRatio;
+				LOGGER.debug("Got a page changed event for page [{0}]", [e.pageId]);
+				var page:Page = PresentationPodManager.getInstance().getPod(e.podId).getPage(e.pageId);
+				if (page != null) {
+					if (! UsersUtil.amIPresenter()) {
+						// if we are presenter, we don't need to reposition our view of the page
+						positionPage(page);
+					}
+				}
 			}
-			
-			/**
-			 * Handles notification from presenter that the slide has moved.
-			 */
-			private function handleMoveEvent(e:MoveEvent):void{
-				if (UserManager.getInstance().getConference().amIPresenter()) {
+
+      private function positionPage(page:Page):void {
+        LOGGER.debug("Got Positioning page [{0}]", [page.id]);
+        if (page != null && page.swfData != null) {   
+          LOGGER.debug("Handling Positioning page [{0}]", [page.id]);
+          slideModel.saveViewedRegion(page.xOffset, page.yOffset, page.widthRatio, page.heightRatio);
+          slideModel.calculateViewportNeededForRegion(page.widthRatio, page.heightRatio);
+          slideModel.displayViewerRegion(page.xOffset, page.yOffset, page.widthRatio, page.heightRatio);
+          slideModel.calculateViewportXY();
+          slideModel.displayPresenterView();
+          slideModel.printViewedRegion();
+          
+          zoomPercentage = (SlideViewModel.HUNDRED_PERCENT / slideModel.viewedRegionW) * SlideViewModel.HUNDRED_PERCENT;
+          
+          fitSlideToLoader();          
+        }        
+      }
+      
+			private function handlePageLoadedEvent(e:PageLoadedEvent):void {
+        LOGGER.debug("Got a page loaded event for pod=" + e.podId + " page=" + e.pageId);
+				if (e.podId != this.podId) {
+          LOGGER.debug("Not handling page as this.podId=" + this.podId);
 					return;
 				}
-				
-				presenterViewedRegionX = e.xOffset;
-				presenterViewedRegionY = e.yOffset;
-				presenterViewedRegionW = e.slideToCanvasWidthRatio;
-				presenterViewedRegionH = e.slideToCanvasHeightRatio;
-				
-				slideModel.saveViewedRegion(e.xOffset, e.yOffset, e.slideToCanvasWidthRatio, e.slideToCanvasHeightRatio);
-				slideModel.calculateViewportNeededForRegion(e.xOffset, e.yOffset, e.slideToCanvasWidthRatio, e.slideToCanvasHeightRatio);
-				slideModel.displayViewerRegion(e.xOffset, e.yOffset, e.slideToCanvasWidthRatio, e.slideToCanvasHeightRatio);
-				slideModel.calculateViewportXY();
-				slideModel.displayPresenterView();
-				slideModel.printViewedRegion();
-				fitSlideToLoader();
+
+				LOGGER.debug("Got a page loaded event for page [{0}]", [e.pageId]);
+				var page:Page = PresentationPodManager.getInstance().getPod(e.podId).getPage(e.pageId);
+				if (page != null) {
+					setSelectedSlide(page.num);
+					slideLoader.source = page.swfData;
+					LOGGER.debug("Displaying page [{0}]", [e.pageId]);
+					//positionPage(page);
+					if (whiteboardCanvas != null) {
+						whiteboardCanvas.displayWhiteboardById(page.id);
+					}
+
+					//slideLoader.accessibilityProperties.description = "Slide text start:  " + e.slideText + "    Slide text end";
+					slideLoader.accessibilityDescription = ResourceUtil.getInstance().getString("bbb.presentation.slideloader.starttext") +
+							page.txtData + ResourceUtil.getInstance().getString("bbb.presentation.slideloader.endtext");
+					slideLoader.accessibilityName = ResourceUtil.getInstance().getString("bbb.presentation.slideloader.starttext") +
+							page.txtData + ResourceUtil.getInstance().getString("bbb.presentation.slideloader.endtext");
+				}
 			}
-					
-			/**
-			 * Handle notification from loader that a slide has been loaded.
-			 */						
-			private function handleSlideLoadedEvent(e:SlideEvent):void{
-				slideLoader.source = e.slide;
-			}
-			
+
+      private function becomeViewer():void {
+        removeEventListener(MouseEvent.MOUSE_WHEEL, onMouseWheelZoomEvent);
+        this.removeEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+      }
+      
 			/**
 			 * Handle the event where this presenter becomes a viewer because another attendee became presenter.
 			 */			
 			private function handleSwitchToViewerEvent(e:MadePresenterEvent):void{
-				removeEventListener(MouseEvent.MOUSE_WHEEL, onMouseWheelZoomEvent);
-				slideLoader.removeEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
-				slideLoader.removeEventListener(MouseEvent.MOUSE_UP, onMouseUp);
-				slideLoader.removeEventListener(MouseEvent.MOUSE_OUT, onMouseOut);
-				removeEventListener(MouseEvent.MOUSE_MOVE, mouseCursorUpdateListener);
+        becomeViewer();
 			}
 			
+      private function becomePresenter():void {
+        // need to calculate slide zoom percantage left by a previous presenter
+        /**
+          * We use width for the calculation because of fit-to-width mode. If you change between 
+          * presenters rapidly the presentation drifts upwards slightly. - Chad
+          */
+        zoomPercentage = (SlideViewModel.HUNDRED_PERCENT / slideModel.viewedRegionW) * SlideViewModel.HUNDRED_PERCENT;
+
+        addEventListener(MouseEvent.MOUSE_WHEEL, onMouseWheelZoomEvent);
+        this.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+        notifyOthersOfZoomEvent();
+      }
+      
 			/**
 			 * Makes the attendee the presenter.
 			 */
-			private function handleSwitchToPresenterEvent(e:MadePresenterEvent):void{
-				addEventListener(MouseEvent.MOUSE_WHEEL, onMouseWheelZoomEvent);
-				slideLoader.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
-				slideLoader.addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
-				slideLoader.addEventListener(MouseEvent.MOUSE_OUT, onMouseOut);
-				addEventListener(MouseEvent.MOUSE_MOVE, mouseCursorUpdateListener);
-				notifyOthersOfZoomEvent();
-			}
-			
-			
-			/**
-			 * Listen for mouse events to track the cursor.
-			 */			
-			public function mouseCursorUpdateListener(e:MouseEvent):void{
-				if (noSlideContentLoaded()) return;				
-				notifyOthersOfPresentersCursorPosition(this.mouseX, this.mouseY);
-			}
-			
-			/**
-			 * Broadcast to other participants the location fo the mouse cursor.
-			 */
-			private function notifyOthersOfPresentersCursorPosition(cursorXPosition:int, cursorYPosition:int):void {
-				var command:PresenterCommands = new PresenterCommands(PresenterCommands.SEND_CURSOR_UPDATE);				
-				command.xPercent = cursorXPosition / this.width;
-				command.yPercent = cursorYPosition / this.height;				
-				dispatchEvent(command);
-			}
-			
-			/**
-			 * Handle notification from presenter about the location of the mouse cursor.
-			 */
-			private function handleUpdateCursorEvent(e:CursorEvent):void{
-				if (noSlideContentLoaded()) return;
-				
-				cursor.x = e.xPercent * this.width;
-				cursor.y = e.yPercent * this.height;
-								
-				if (isCursorOutsideWindow(e)) {
-					hideCursor()
-				} else {
-					showCursor();
-				}	
+			private function handleSwitchToPresenterEvent(e:MadePresenterEvent):void {
+        becomePresenter();
 			}
 			
 			private function noSlideContentLoaded():Boolean {
@@ -377,93 +409,75 @@
 			}
 			
 			private function handleSlideLoadedCompleteEvent(event:Event):void {
-				if (lateComerSynched) {
-					slideModel.resetForNewSlide(slideLoader.contentWidth, slideLoader.contentHeight);					
-				} else {
-					lateComerSynched = true;
-					slideModel.reset(slideLoader.contentWidth, slideLoader.contentHeight);
-					slideModel.saveViewedRegion(presenterViewedRegionX, presenterViewedRegionY, presenterViewedRegionW, presenterViewedRegionH);					
-				}
-				
-				dispatchNewSlideDisplayedEvent(slideModel.pageOrigW, slideModel.pageOrigH);				
+
+        		LOGGER.debug("Page has been loaded by swfLoader.");
+				slideModel.resetForNewSlide(slideLoader.contentWidth, slideLoader.contentHeight);
+				dispatchNewSlideDisplayedEvent(slideModel.pageOrigW, slideModel.pageOrigH);
 			}
-					
+
 			private function dispatchNewSlideDisplayedEvent(slideRealWidth:int, slideRealHeight:int):void {
 				var dispEvent:DisplaySlideEvent = new DisplaySlideEvent(DisplaySlideEvent.DISPLAY_SLIDE_EVENT);
 				dispEvent.slideWidth = slideRealWidth;
 				dispEvent.slideHeight = slideRealHeight;
 				dispatcher.dispatchEvent(dispEvent);
 			}
-						
-			private function isCursorOutsideWindow(e:CursorEvent):Boolean {
-				return (e.xPercent > 1 && e.yPercent > 1) || (cursor.x > this.width || cursor.y > this.height);
-			}
 			
-			private function showCursor():void {
-				cursor.visible = true;
-			}
-			
-			private function hideCursor():void{
-				cursor.visible = false;
-			}			
-			
-			/** Inherited from IBbbCanvas*/
-			public function addRawChild(child:DisplayObject):void{
-				this.whiteboardCanvasHolder.rawChildren.addChild(child);
-			}
-			
-			public function removeRawChild(child:DisplayObject):void{
-				this.whiteboardCanvasHolder.rawChildren.removeChild(child);
-			}
-			
-			public function doesContain(child:DisplayObject):Boolean{
-				return this.whiteboardCanvasHolder.rawChildren.contains(child);
-			}
-			
-			public function acceptOverlayCanvas(overlay:IBbbCanvas):void{
+			public function acceptOverlayCanvas(_podId: String, overlay:WhiteboardCanvas):void{
 				whiteboardCanvas = overlay;
-				var c:Canvas = overlay as Canvas;
-				this.addChild(c);
-				c.x = slideLoader.x * SlideCalcUtil.MYSTERY_NUM;
-				c.y = slideLoader.y * SlideCalcUtil.MYSTERY_NUM;
-				c.width = slideLoader.width;
-				c.height = slideLoader.height;
+
+				if (_podId != this.podId) {
+					return;
+				}
+
+				var currPage:Page = PresentationPodManager.getInstance().getPod(_podId).getCurrentPage();
+				if (currPage != null) {
+					whiteboardCanvas.displayWhiteboardById(currPage.id);
+				}
+
+				this.addChildAt(whiteboardCanvas, this.getChildIndex(thumbnailView));
 				fitSlideToLoader();
+				whiteboardCanvas.addEventListener(MouseEvent.MOUSE_DOWN, handleWhiteboardCanvasClick);
+				slideLoader.addEventListener(MouseEvent.MOUSE_DOWN, handleWhiteboardCanvasClick);
+			}
+			
+			public function removeOverlayCanvas():void {
+				whiteboardCanvas = null;
+			}
+			
+			private function handleWhiteboardCanvasClick(e:MouseEvent):void {
+				if (thumbnailView.visible) thumbnailView.visible = false;
 			}
 			
 			public function moveCanvas(x:Number, y:Number):void{
-				whiteboardCanvasHolder.x = slideLoader.x * SlideCalcUtil.MYSTERY_NUM;
-				whiteboardCanvasHolder.y = slideLoader.y * SlideCalcUtil.MYSTERY_NUM;
-				
 				if (whiteboardCanvas != null) {
-					whiteboardCanvas.moveCanvas(whiteboardCanvasHolder.x, whiteboardCanvasHolder.y);
+					whiteboardCanvas.moveCanvas(x * SlideCalcUtil.MYSTERY_NUM, y * SlideCalcUtil.MYSTERY_NUM);
 				}
 			}
 			
 			public function zoomCanvas(width:Number, height:Number):void{
-				whiteboardCanvasHolder.width = width;
-				whiteboardCanvasHolder.height = height;
 				moveCanvas(slideLoader.x, slideLoader.y);
 				if (whiteboardCanvas != null) {
+					//LogUtil.debug("Zooming Canvas " + width + " " + height);
 					whiteboardCanvas.zoomCanvas(width, height);
 				}
 			}
 			
-			public function showOverlayCanvas(show:Boolean):void{
-				whiteboardCanvas.showCanvas(show);
-			}
-			
-			public function showCanvas(show:Boolean):void{
-				
+			private function focusSlide(e:ShortcutEvent):void{
+				focusManager.setFocus(slideLoader);
+				slideLoader.drawFocus(true);
 			}
 			
 		]]>
-	</mx:Script>
-	<mx:SWFLoader id="slideLoader" width="{slideModel.loaderW}" height="{slideModel.loaderH}" x="{slideModel.loaderX}" y="{slideModel.loaderY}" 
-		creationComplete="listenForSlideLoadedCompleteEvent()" scaleContent="false" showBusyCursor="true" completeEffect="Fade"/>			
-	
-   		
-    <mx:HorizontalList id="thumbnailView" itemRenderer="org.bigbluebutton.modules.present.ui.views.Thumbnail" itemRollOver="changeIndex(event)" 
-    	visible="false" width="100%" height="100" y="{this.height - 100}" change="changeSlide()" />
-		      		 
+	</fx:Script>
+	<fimage:FocusableImage id="slideLoader" width="{slideModel.loaderW}" height="{slideModel.loaderH}"
+                           x="{slideModel.loaderX}" y="{slideModel.loaderY}" useHandCursor="true" buttonMode="false"
+		                   creationComplete="listenForSlideLoadedCompleteEvent()"
+                           styleName="presentationSlideViewStyle"
+                           scaleContent="false"
+                           showBusyCursor="true"
+                           completeEffect="Fade" />
+   <mx:HorizontalList id="thumbnailView" itemRenderer="org.bigbluebutton.modules.present.ui.views.Thumbnail" 
+    	              visible="false" width="100%" height="100" 
+                      bottom="0" change="changeSlide()" />
+
 </mx:Canvas>

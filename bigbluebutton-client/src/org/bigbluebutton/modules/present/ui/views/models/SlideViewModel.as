@@ -1,10 +1,30 @@
+/**
+ * BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
+ * 
+ * Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
+ *
+ * This program is free software; you can redistribute it and/or modify it under the
+ * terms of the GNU Lesser General Public License as published by the Free Software
+ * Foundation; either version 3.0 of the License, or (at your option) any later
+ * version.
+ * 
+ * BigBlueButton is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+ * PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License along
+ * with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 package org.bigbluebutton.modules.present.ui.views.models
 {
-	import org.bigbluebutton.common.LogUtil;
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
 
-	
 	public class SlideViewModel
 	{
+		private static const LOGGER:ILogger = getClassLogger(SlideViewModel);
+
 		public static const MAX_ZOOM_PERCENT:Number = 400;
 		public static const HUNDRED_PERCENT:Number = 100;
 		
@@ -119,7 +139,7 @@ package org.bigbluebutton.modules.present.ui.views.models
 		
 		public function adjustSlideAfterParentResized():void {			
 			if (fitToPage) {
-				calculateViewportNeededForRegion(_viewedRegionX, _viewedRegionY, _viewedRegionW, _viewedRegionH);
+				calculateViewportNeededForRegion(_viewedRegionW, _viewedRegionH);
 				displayViewerRegion(_viewedRegionX, _viewedRegionY, _viewedRegionW, _viewedRegionH);
 				calculateViewportXY();
 				displayPresenterView();
@@ -130,14 +150,17 @@ package org.bigbluebutton.modules.present.ui.views.models
 				_calcPageW = (viewportW/_viewedRegionW) * HUNDRED_PERCENT;
 				_calcPageH = (_pageOrigH/_pageOrigW) * _calcPageW;
 				calcViewedRegion();
-				onResizeMove();				
+				doBoundsValidation();
 			}
 		}
 		
 		public function switchToFitToPage(ftp:Boolean):void {
-			LogUtil.debug("switchToFitToPage");
+			LOGGER.debug("switchToFitToPage");
 			
 			this.fitToPage = ftp;
+			
+			saveViewedRegion(0,0,100,100);
+			
 			calculateViewportSize();
 			calculateViewportXY();			
 		}
@@ -166,46 +189,64 @@ package org.bigbluebutton.modules.present.ui.views.models
 			}			
 		}
 		
-		private function onResizeMove():void {		
+		private function doBoundsValidation():void {
 			doWidthBoundsDetection();
 			doHeightBoundsDetection();
 		}
 		
-		public function onMove(deltaX:Number, deltaY:Number):void {
-			_calcPageX += deltaX;
-			_calcPageY += deltaY;
+		/** Returns whether or not the page actually moved */
+		public function onMove(deltaX:Number, deltaY:Number):Boolean {
+			var oldX:Number = _calcPageX;
+			var oldY:Number = _calcPageY;
 			
-			onResizeMove();	
-			calcViewedRegion();
+			_calcPageX += deltaX / MYSTERY_NUM;
+			_calcPageY += deltaY / MYSTERY_NUM;
+			
+			doBoundsValidation();
+			
+			if (oldX != _calcPageX || oldY != _calcPageY) {
+				calcViewedRegion();
+				return true;
+			} else {
+				return false;
+			}
 		}
 		
 		public function calculateViewportSize():void {
 			viewportW = parentW;
 			viewportH = parentH;
 			
+			/*
+			* For some reason when the viewport values are both whole numbers the clipping doesn't 
+			* function. When the second part of the width/height pair is rounded up and then 
+			* reduced by 0.5 the clipping always seems to happen. This was a long standing, bug 
+			* and if you try to remove the Math.ceil and "-0.5" you better know what you're doing.
+			*             - Chad (Aug 30, 2017)
+			*/
+			
 			if (fitToPage) {
 				// If the height is smaller than the width, we use the height as the base to determine the size of the slide.
-				if (parentH < parentW) {					
+				if (parentH < parentW) {
 					viewportH = parentH;
-					viewportW = ((pageOrigW * viewportH)/pageOrigH);					
+					viewportW = Math.ceil((pageOrigW * viewportH)/pageOrigH)-0.5;
 					if (parentW < viewportW) {
 						viewportW = parentW;
-						viewportH = ((pageOrigH * viewportW)/pageOrigW);
+						viewportH = Math.ceil((pageOrigH * viewportW)/pageOrigW)-0.5;
 					}
 				} else {
 					viewportW = parentW;
-					viewportH = (viewportW/pageOrigW) * pageOrigH;
+					viewportH = Math.ceil((viewportW/pageOrigW) * pageOrigH)-0.5;
 					if (parentH < viewportH) {
 						viewportH = parentH;
-						viewportW = ((pageOrigW * viewportH)/pageOrigH);
-					}												
-				}					
-			} else {
-				if (viewportW < pageOrigW) {
-					viewportH = (viewportW/pageOrigW)*pageOrigH;
+						viewportW = Math.ceil((pageOrigW * viewportH)/pageOrigH)-0.5;
+					}
 				}
-			}		
-		}	
+			} else {
+				viewportH = Math.ceil((viewportW/pageOrigW)*pageOrigH)-0.5;
+				if (viewportH > parentH)
+					viewportH = parentH;
+			}
+		}
 			
 		public function printViewedRegion():void {
 //			LogUtil.debug("Region [" + viewedRegionW + "," + viewedRegionH + "] [" + viewedRegionX + "," + viewedRegionY + "]");			
@@ -214,51 +255,47 @@ package org.bigbluebutton.modules.present.ui.views.models
 		}
 		
 		public function onZoom(zoomValue:Number, mouseX:Number, mouseY:Number):void {
-			var cpw:Number = _calcPageW;
-			var cph:Number = _calcPageH;
-			var zpx:Number = Math.abs(_calcPageX) + mouseX;
-			var zpy:Number = Math.abs(_calcPageY) + mouseY;
-			var zpxp:Number = zpx/cpw;
-			var zpyp:Number = zpy/cph;
-				
-			_calcPageW = pageOrigW * zoomValue / HUNDRED_PERCENT;
-			_calcPageH = (_calcPageW/cpw) * cph; 
-				
-			var zpx1:Number = _calcPageW * zpxp;
-			var zpy1:Number = _calcPageH * zpyp;				
-			_calcPageX = -((zpx1 + zpx)/2) + mouseX;
-			_calcPageY = -((zpy1 + zpy)/2) + mouseY;
-				
+			
+			// Absolute x and y positions of the mouse over the (enlarged) slide:
+			var absXcoordInPage:Number = Math.abs(_calcPageX) * MYSTERY_NUM + mouseX;
+			var absYcoordInPage:Number = Math.abs(_calcPageY) * MYSTERY_NUM + mouseY;
+			
+			// Relative position of mouse over the slide. For example, if your slide is 1000 pixels wide, 
+			// and your mouse has an absolute x-coordinate of 700, then relXcoordInPage will be 0.7 :
+			var relXcoordInPage:Number = absXcoordInPage / _calcPageW; 
+			var relYcoordInPage:Number = absYcoordInPage / _calcPageH;
+			
+			// Relative position of mouse in the view port (same as above, but with the view port):
+			var relXcoordInViewport:Number = mouseX / viewportW;
+			var relYcoordInViewport:Number = mouseY / viewportH;
+			
+			if (isPortraitDoc()) {
+				if (fitToPage) {
+					_calcPageH = viewportH * zoomValue / HUNDRED_PERCENT;
+					_calcPageW = (_pageOrigW/_pageOrigH)*_calcPageH;
+				} else {
+					_calcPageW = viewportW * zoomValue / HUNDRED_PERCENT;
+					_calcPageH = (_calcPageW/_pageOrigW)*_pageOrigH;
+				}
+			} else {
+				if (fitToPage) {
+					_calcPageW = viewportW * zoomValue / HUNDRED_PERCENT;
+					_calcPageH = viewportH * zoomValue / HUNDRED_PERCENT;
+				} else {
+					_calcPageW = viewportW * zoomValue / HUNDRED_PERCENT;
+					_calcPageH = (_calcPageW/_pageOrigW)*_pageOrigH;
+				}
+			}
+			
+			absXcoordInPage = relXcoordInPage * _calcPageW;
+			absYcoordInPage = relYcoordInPage * _calcPageH;
+			
+			_calcPageX = -((absXcoordInPage - mouseX) / MYSTERY_NUM);
+			_calcPageY = -((absYcoordInPage - mouseY) / MYSTERY_NUM);
+			
 			doWidthBoundsDetection();
 			doHeightBoundsDetection();
-				
-			if ((zoomValue <= HUNDRED_PERCENT) || (_calcPageW < viewportW) || (_calcPageH < viewportH)) {
-				if (isPortraitDoc()) {
-					if (fitToPage) {
-						_calcPageY = 0;
-						_calcPageH = viewportH;
-						_calcPageW = (_pageOrigW/_pageOrigH)*_calcPageH;
-						_calcPageX = 0;
-					} else {
-						_calcPageX = 0;
-						_calcPageY = 0;
-						_calcPageW = viewportW;
-						_calcPageH = (_calcPageW/_pageOrigW)*_pageOrigH;
-					}
-				} else {
-					if (fitToPage) {
-						_calcPageW = viewportW;
-						_calcPageH = viewportH;
-						_calcPageY = 0;
-						_calcPageX = 0;							
-					} else {
-						_calcPageX = 0;
-						_calcPageY = 0;
-						_calcPageW = viewportW;
-						_calcPageH = (_calcPageW/_pageOrigW)*_pageOrigH;							
-					}
-				}
-			} 
+			
 			calcViewedRegion();
 		}
 		
@@ -278,27 +315,35 @@ package org.bigbluebutton.modules.present.ui.views.models
 			_viewedRegionH = regionH;
 		}
 		
-		public function calculateViewportNeededForRegion(x:Number, y:Number, regionW:Number, regionH:Number):void {			
+		public function calculateViewportNeededForRegion(regionW:Number, regionH:Number):void {
 			var vrwp:Number = pageOrigW * (regionW/HUNDRED_PERCENT);
 			var vrhp:Number = pageOrigH * (regionH/HUNDRED_PERCENT);
 			
+			/*
+			* For some reason when the viewport values are both whole numbers the clipping doesn't 
+			* function. When the second part of the width/height pair is rounded up and then 
+			* reduced by 0.5 the clipping always seems to happen. This was a long standing, bug 
+			* and if you try to remove the Math.ceil and "-0.5" you better know what you're doing.
+			*             - Chad (Aug 30, 2017)
+			*/
+			
 			if (parentW < parentH) {
 				viewportW = parentW;
-				viewportH = (vrhp/vrwp)*parentW;				 
+				viewportH = Math.ceil((vrhp/vrwp)*parentW)-0.5;
 				if (parentH < viewportH) {
 					viewportH = parentH;
-					viewportW = ((vrwp * viewportH)/viewportH);
-//					LogUtil.debug("calc viewport ***** resizing [" + viewportW + "," + viewportH + "] [" + parentW + "," + parentH + "," + fitToPage + "] [" + pageOrigW + "," + pageOrigH + "]");
+					viewportW = Math.ceil((vrwp * viewportH)/vrhp)-0.5;
 				}
 			} else {
 				viewportH = parentH;
-				viewportW = (vrwp/vrhp)*parentH;
+				viewportW = Math.ceil((vrwp/vrhp)*parentH)-0.5;
 				if (parentW < viewportW) {
 					viewportW = parentW;
-					viewportH = ((vrhp * viewportW)/vrwp);
-//					LogUtil.debug("calc viewport resizing [" + viewportW + "," + viewportH + "] [" + parentW + "," + parentH + "," + fitToPage + "] [" + pageOrigW + "," + pageOrigH + "]");
+					viewportH = Math.ceil((vrhp * viewportW)/vrwp)-0.5;
 				}
 			}
+			
+			LOGGER.debug("calc viewport ***** resizing [" + viewportW + "," + viewportH + "] [" + parentW + "," + parentH + "," + fitToPage + "] [" + pageOrigW + "," + pageOrigH + "]");
 		}
 	}
 }

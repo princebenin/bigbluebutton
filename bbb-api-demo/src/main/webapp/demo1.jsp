@@ -1,6 +1,6 @@
 <!--
 
-BigBlueButton - http://www.bigbluebutton.org
+BigBlueButton - http://www.bigbluebutton.org  
 
 Copyright (c) 2008-2009 by respective authors (see below). All rights reserved.
 
@@ -84,11 +84,13 @@ if (request.getParameterMap().isEmpty()) {
 	// Got an action=create
 	//
 	
+	String username = request.getParameter("username");
 	String url = BigBlueButtonURL.replace("bigbluebutton/","demo/");
 	// String preUploadPDF = "<?xml version='1.0' encoding='UTF-8'?><modules><module name='presentation'><document url='"+url+"pdfs/sample.pdf'/></module></modules>";
+	
 	String joinURL = getJoinURL(request.getParameter("username"), "Demo Meeting", "false", null, null, null);
 
-	if (joinURL.startsWith("http://")) { 
+	if (joinURL.startsWith("http://") || joinURL.startsWith("https://")) { 
 %>
 
 <script language="javascript" type="text/javascript">

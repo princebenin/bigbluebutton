@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
-
 import org.red5.logging.Red5LoggerFactory;
-import org.red5.server.api.IScope;
 import org.red5.server.api.event.IEvent;
+import org.red5.server.api.scope.IScope;
 import org.red5.server.api.stream.IBroadcastStream;
-import org.red5.server.api.stream.IStreamCodecInfo;
+import org.red5.codec.IStreamCodecInfo;
+import org.red5.codec.StreamCodecInfo;
 import org.red5.server.api.stream.IStreamListener;
 import org.red5.server.api.stream.ResourceExistException;
 import org.red5.server.api.stream.ResourceNotFoundException;
@@ -21,11 +21,8 @@ import org.red5.server.messaging.OOBControlMessage;
 import org.red5.server.messaging.PipeConnectionEvent;
 import org.red5.server.net.rtmp.event.IRTMPEvent;
 import org.red5.server.net.rtmp.event.Notify;
-import org.red5.server.stream.codec.StreamCodecInfo;
 import org.red5.server.stream.message.RTMPMessage;
-
 import org.slf4j.Logger;
-
 import org.red5.server.api.stream.IStreamPacket;;
 
 public class AudioStream implements IBroadcastStream, IProvider, IPipeConnectionListener {
@@ -40,7 +37,12 @@ public class AudioStream implements IBroadcastStream, IProvider, IPipeConnection
 	// Codec handling stuff for frame dropping
 	private StreamCodecInfo streamCodecInfo;
 	private Long creationTime;
-  
+
+	/**
+	 * Timestamp the stream was started.
+	 */
+	private long startTime;
+	
 	public AudioStream(String name) {
 		publishedStreamName = name;
 		livePipe = null;
@@ -108,8 +110,15 @@ public class AudioStream implements IBroadcastStream, IProvider, IPipeConnection
 		return scope;
 	}
 
+	@Override
+	public long getStartTime() {
+		return startTime;
+	}
+
 	public void start() {
 		log.trace("start()");
+		// technically this would be a 'start' time
+		startTime = System.currentTimeMillis();
 	}
 
 	public void stop() {
@@ -122,33 +131,20 @@ public class AudioStream implements IBroadcastStream, IProvider, IPipeConnection
 
 	public void onPipeConnectionEvent(PipeConnectionEvent event) {
 		log.trace("onPipeConnectionEvent(event:{})", event);
-		switch (event.getType())
-		{
-	    	case PipeConnectionEvent.PROVIDER_CONNECT_PUSH:
-	    		log.trace("PipeConnectionEvent.PROVIDER_CONNECT_PUSH");
-	    		System.out.println("PipeConnectionEvent.PROVIDER_CONNECT_PUSH");
-	    		if (event.getProvider() == this && (event.getParamMap() == null || !event.getParamMap().containsKey("record"))) {
-	    			log.trace("Creating a live pipe");
-	    			System.out.println("Creating a live pipe");
-	    			this.livePipe = (IPipe) event.getSource();
-	    		}
-	    		break;
-	    	case PipeConnectionEvent.PROVIDER_DISCONNECT:
-	    		log.trace("PipeConnectionEvent.PROVIDER_DISCONNECT");
-	    		if (this.livePipe == event.getSource()) {
-	    			log.trace("PipeConnectionEvent.PROVIDER_DISCONNECT - this.mLivePipe = null;");
-	    			this.livePipe = null;
-	    		}
-	    		break;
-	    	case PipeConnectionEvent.CONSUMER_CONNECT_PUSH:
-	    		log.trace("PipeConnectionEvent.CONSUMER_CONNECT_PUSH");
-	    		break;
-	    	case PipeConnectionEvent.CONSUMER_DISCONNECT:
-	    		log.trace("PipeConnectionEvent.CONSUMER_DISCONNECT");
-	    		break;
-	    	default:
-	    		log.trace("PipeConnectionEvent default");
-	    		break;
+		if (event.getType() == PipeConnectionEvent.EventType.PROVIDER_CONNECT_PUSH) {
+			log.trace("PipeConnectionEvent.PROVIDER_CONNECT_PUSH");
+			System.out.println("PipeConnectionEvent.PROVIDER_CONNECT_PUSH");
+			if (event.getProvider() == this && (event.getParamMap() == null || !event.getParamMap().containsKey("record"))) {
+				log.trace("Creating a live pipe");
+				System.out.println("Creating a live pipe");
+				this.livePipe = (IPipe) event.getSource();
+			}
+		} else if(event.getType() == PipeConnectionEvent.EventType.PROVIDER_DISCONNECT) {
+			log.trace("PipeConnectionEvent.PROVIDER_DISCONNECT");
+			if (this.livePipe == event.getSource()) {
+				log.trace("PipeConnectionEvent.PROVIDER_DISCONNECT - this.mLivePipe = null;");
+				this.livePipe = null;
+			}
 		}
 	}
 
